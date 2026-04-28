@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.controller;
 
+import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.AuthResponse;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.entity.User;
@@ -28,6 +29,15 @@ public class AuthController {
                 true,
                 "Đăng ký thành công! Mật khẩu đã được gửi đến email của bạn.",
                 Map.of("email", user.getEmail(), "fullName", user.getFullName())
+        ));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(new AuthResponse(
+                true,
+                "Mật khẩu mới đã được gửi đến email của bạn."
         ));
     }
 

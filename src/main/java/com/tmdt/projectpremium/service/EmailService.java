@@ -27,4 +27,21 @@ public class EmailService {
         );
         mailSender.send(message);
     }
+
+    public void sendResetPasswordEmail(String toEmail, String fullName, String newPassword) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("ProjectPremium - Đặt lại mật khẩu");
+        message.setText(
+            "Xin chào " + fullName + ",\n\n" +
+            "Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu của bạn.\n\n" +
+            "Mật khẩu mới của bạn là:\n" +
+            "  " + newPassword + "\n\n" +
+            "Vui lòng đăng nhập và đổi mật khẩu ngay sau khi nhận được email này.\n\n" +
+            "Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.\n\n" +
+            "Trân trọng,\n" +
+            "Đội ngũ ProjectPremium"
+        );
+        mailSender.send(message);
+    }
 }

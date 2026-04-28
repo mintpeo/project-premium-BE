@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.service;
 
+import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.repository.UserRepository;
@@ -48,6 +49,21 @@ public class AuthService {
         }
 
         return savedUser;
+    }
+
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại trong hệ thống"));
+
+        String newPassword = generateRandomPassword();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        try {
+            emailService.sendResetPasswordEmail(user.getEmail(), user.getFullName(), newPassword);
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể gửi email. Vui lòng thử lại sau.");
+        }
     }
 
     private String generateRandomPassword() {
