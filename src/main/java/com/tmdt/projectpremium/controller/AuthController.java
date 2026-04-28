@@ -3,6 +3,7 @@ package com.tmdt.projectpremium.controller;
 import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.AuthResponse;
 import com.tmdt.projectpremium.dto.RegisterRequest;
+import com.tmdt.projectpremium.dto.SendOtpRequest;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.service.AuthService;
 import jakarta.validation.Valid;
@@ -21,6 +22,12 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<AuthResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        authService.sendRegisterOtp(request);
+        return ResponseEntity.ok(new AuthResponse(true, "Mã xác nhận đã được gửi đến email của bạn."));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {

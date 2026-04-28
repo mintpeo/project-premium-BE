@@ -11,6 +11,21 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    public void sendOtpEmail(String toEmail, String fullName, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("ProjectPremium - Mã xác nhận đăng ký");
+        message.setText(
+            "Xin chào " + fullName + ",\n\n" +
+            "Mã xác nhận đăng ký tài khoản của bạn là:\n\n" +
+            "  " + otp + "\n\n" +
+            "Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.\n\n" +
+            "Trân trọng,\n" +
+            "Đội ngũ ProjectPremium"
+        );
+        mailSender.send(message);
+    }
+
     public void sendPasswordEmail(String toEmail, String fullName, String password) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);

@@ -2,6 +2,7 @@ package com.tmdt.projectpremium.service;
 
 import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
+import com.tmdt.projectpremium.dto.SendOtpRequest;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,40 +18,50 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final OtpService otpService;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
     private static final int PASSWORD_LENGTH = 10;
 
-    public User register(RegisterRequest request) {
+    // Gửi OTP về email để xác nhận đăng ký
+    public void sendRegisterOtp(SendOtpRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email đã được sử dụng");
         }
+        String otp = otpService.generateOtp(request.getEmail());
+        try {
+            emailService.sendOtpEmail(request.getEmail(), request.getFullName(), otp);
+        } catch (Exception e) {
+            throw new RuntimeException("Không thể gửi email. Vui lòng thử lại sau.");
+        }
+    }
 
-        // Tạo mật khẩu ngẫu nhiên
-        String generatedPassword = generateRandomPassword();
+    // Xác nhận OTP và tạo tài khoản
+    public User register(RegisterRequest request) {
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Mật khẩu xác nhận không khớp");
+        }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email đã được sử dụng");
+        }
+        if (!otpService.verifyOtp(request.getEmail(), request.getOtp())) {
+            throw new IllegalArgumentException("Mã xác nhận không đúng hoặc đã hết hạn");
+        }
 
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(generatedPassword))
+                .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
                 .role(User.Role.CUSTOMER)
                 .build();
 
         User savedUser = userRepository.save(user);
-
-        // Gửi email chứa mật khẩu
-        try {
-            emailService.sendPasswordEmail(savedUser.getEmail(), savedUser.getFullName(), generatedPassword);
-        } catch (Exception e) {
-            // Nếu gửi email thất bại, xóa user vừa tạo
-            userRepository.delete(savedUser);
-            throw new RuntimeException("Không thể gửi email. Vui lòng thử lại sau.");
-        }
-
+        otpService.removeOtp(request.getEmail());
         return savedUser;
     }
 
+    // Quên mật khẩu
     public void forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại trong hệ thống"));
