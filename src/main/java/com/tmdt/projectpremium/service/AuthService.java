@@ -1,6 +1,7 @@
 package com.tmdt.projectpremium.service;
 
 import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
+import com.tmdt.projectpremium.dto.LoginRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.dto.SendOtpRequest;
 import com.tmdt.projectpremium.entity.User;
@@ -84,5 +85,47 @@ public class AuthService {
             password.append(CHARACTERS.charAt(random.nextInt(CHARACTERS.length())));
         }
         return password.toString();
+    }
+
+    // Đăng nhập
+    public User login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email hoặc mật khẩu không đúng"));
+
+        String storedPassword = user.getPassword();
+        String inputPassword = request.getPassword();
+
+        // Hỗ trợ cả plain text (legacy) lẫn bcrypt
+        boolean passwordMatch = false;
+
+        // Kiểm tra bcrypt (password bắt đầu bằng $2a$ hoặc $2b$)
+        if (storedPassword != null && (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$"))) {
+            try {
+                passwordMatch = passwordEncoder.matches(inputPassword, storedPassword);
+            } catch (Exception ignored) {}
+        } else {
+            // Plain text comparison
+            passwordMatch = inputPassword.equals(storedPassword);
+        }
+
+        if (!passwordMatch) {
+            throw new IllegalArgumentException("Email hoặc mật khẩu không đúng");
+        }
+
+        // Nếu password đang là plain text, tự động hash lại
+        if (!storedPassword.startsWith("$2a$") && !storedPassword.startsWith("$2b$")) {
+            user.setPassword(passwordEncoder.encode(inputPassword));
+            userRepository.save(user);
+        }
+
+        return user;
+    }
+
+    // Fix: hash lại password plain text trong DB
+    public void fixPlainTextPassword(String email, String plainPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại"));
+        user.setPassword(passwordEncoder.encode(plainPassword));
+        userRepository.save(user);
     }
 }

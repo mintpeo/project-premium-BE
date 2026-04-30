@@ -2,6 +2,7 @@ package com.tmdt.projectpremium.controller;
 
 import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.AuthResponse;
+import com.tmdt.projectpremium.dto.LoginRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.dto.SendOtpRequest;
 import com.tmdt.projectpremium.entity.User;
@@ -45,6 +46,21 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(
                 true,
                 "Mật khẩu mới đã được gửi đến email của bạn."
+        ));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        User user = authService.login(request);
+        return ResponseEntity.ok(new AuthResponse(
+                true,
+                "Đăng nhập thành công",
+                Map.of(
+                        "id", user.getId(),
+                        "email", user.getEmail(),
+                        "fullName", user.getFullName() != null ? user.getFullName() : "",
+                        "role", user.getRole().name()
+                )
         ));
     }
 
