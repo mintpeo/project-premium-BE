@@ -1,0 +1,36 @@
+package com.tmdt.projectpremium.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "cart_items")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class CartItem {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
+    @ManyToOne
+    @JoinColumn(name = "cart_id")
+    @NonNull
+    private Cart cart;
+
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    @NonNull
+    private Product product;
+
+    @Column(name = "quantity")
+    private int quantity;
+
+    @Column(name = "type_user")
+    private String typeUser;
+
+    @Column(name = "duration")
+    private String duration;
+}
