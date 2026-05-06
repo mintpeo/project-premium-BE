@@ -1,7 +1,10 @@
 package com.tmdt.projectpremium.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Table(name = "products")
@@ -18,28 +21,28 @@ public class Product {
     private String img;
 
     @Column(name = "rating")
-    private int rating;
+    private Double rating;
 
     @Column(name = "sold")
-    private int sold;
-
-    @Column(name = "rating_star")
-    private int ratingStar;
+    private Integer sold;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "price_min")
-    private int priceMin;
+    @Column(name = "price_original")
+    private Integer priceOri;
 
-    @Column(name = "price_max")
-    private int priceMax;
+    @Column(name = "price")
+    private Integer price;
 
-    @Column(name = "types_user")
-    private String typesUser;
+    @OneToMany(mappedBy = "product")
+    private List<ProductCate> productCates;
 
-    @Column(name = "duration")
-    private String duration;
+    @OneToMany(mappedBy = "product")
+    private List<ProductDura> productDuras;
+
+    @OneToMany(mappedBy = "product")
+    private List<ProductType> productTypes;
 }
 
 

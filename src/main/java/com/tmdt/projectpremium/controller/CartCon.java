@@ -1,6 +1,6 @@
 package com.tmdt.projectpremium.controller;
 
-import com.tmdt.projectpremium.dto.AddToCartReq;
+import com.tmdt.projectpremium.dto.request.AddToCartReq;
 import com.tmdt.projectpremium.service.CartSer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
