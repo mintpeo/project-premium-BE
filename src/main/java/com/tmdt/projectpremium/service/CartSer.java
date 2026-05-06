@@ -1,6 +1,6 @@
 package com.tmdt.projectpremium.service;
 
-import com.tmdt.projectpremium.dto.AddToCartReq;
+import com.tmdt.projectpremium.dto.request.AddToCartReq;
 import com.tmdt.projectpremium.entity.Cart;
 import com.tmdt.projectpremium.entity.CartItem;
 import com.tmdt.projectpremium.entity.Product;

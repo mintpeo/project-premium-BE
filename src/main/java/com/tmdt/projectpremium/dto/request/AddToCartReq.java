@@ -1,4 +1,4 @@
-package com.tmdt.projectpremium.dto;
+package com.tmdt.projectpremium.dto.request;
 
 import lombok.Getter;
 
