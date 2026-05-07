@@ -21,11 +21,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/user/**").permitAll()
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(auth -> auth
+                                .requestMatchers("/api/auth/**", "/api/user/**").permitAll()
                     .requestMatchers("api/product/**").permitAll()
-            );
+//                    .requestMatchers("api/cartItem/**").authenticated()
+                                .anyRequest().permitAll()
+                );
         return http.build();
     }
 }

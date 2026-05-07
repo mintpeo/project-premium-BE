@@ -1,6 +1,7 @@
 package com.tmdt.projectpremium.service;
 
 import com.tmdt.projectpremium.dto.request.AddToCartReq;
+import com.tmdt.projectpremium.dto.response.ShowCartRes;
 import com.tmdt.projectpremium.entity.Cart;
 import com.tmdt.projectpremium.entity.CartItem;
 import com.tmdt.projectpremium.entity.Product;
@@ -12,6 +13,9 @@ import com.tmdt.projectpremium.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class CartSer {
@@ -20,7 +24,7 @@ public class CartSer {
     private final UserRepository userRep;
     private final ProductRep productRep;
 
-    private Cart checkUserHaveCart(Long userId) {
+    private Cart checkUserHaveCart(long userId) {
         Cart checkCart = rep.findByUserId(userId);
         if (checkCart == null) {
             // check user id
@@ -32,6 +36,45 @@ public class CartSer {
         return checkCart; // have cart
     }
 
+
+    // Remove Product In Cart
+    public void removeProductInCart(long cartItemId) {
+        if (!cartItemRep.existsById(cartItemId)) throw new RuntimeException("Không tìm thấy cartItem_id:" + cartItemId);
+        cartItemRep.deleteById(cartItemId);
+    }
+
+    // Update Quantity
+    public void updateQuantityCartItem(long cartItemId, int quantity) {
+        if (quantity <= 0) return;
+
+        CartItem cartItem = cartItemRep.findById(cartItemId).orElseThrow(() -> new RuntimeException("Không tìm thấy cartItem_id:" + cartItemId));
+        cartItem.setQuantity(quantity);
+        cartItemRep.save(cartItem);
+    }
+
+    // Show Your Cart
+    public List<ShowCartRes> showYourCart(long userId) {
+        Cart cart = checkUserHaveCart(userId);
+        List<CartItem> cartItemList = cartItemRep.findByCartId(cart.getId());
+        List<ShowCartRes> res = new ArrayList<>();
+        for (CartItem cartItem : cartItemList) {
+            ShowCartRes showCartRes = new ShowCartRes();
+            showCartRes.setId(cartItem.getId());
+            showCartRes.setProductId(cartItem.getProduct().getId());
+            showCartRes.setProductName(cartItem.getProduct().getName());
+            showCartRes.setProductImg(cartItem.getProduct().getImg());
+            showCartRes.setProductPrice(cartItem.getProduct().getPrice());
+            showCartRes.setQuantity(cartItem.getQuantity());
+            showCartRes.setTypeUser(cartItem.getTypeUser());
+            showCartRes.setDuration(cartItem.getDuration());
+
+            res.add(showCartRes);
+        }
+
+        return res;
+    }
+
+    // Add To Cart
     public void addToCart(AddToCartReq req) { // cartItem
         Cart cart = checkUserHaveCart(req.getUserId());
         Product product = productRep.findById(req.getProductId()).orElseThrow(() -> new RuntimeException("Không tìm thấy product_id:" + req.getProductId()));
