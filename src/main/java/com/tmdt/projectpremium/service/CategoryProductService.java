@@ -56,4 +56,20 @@ public class CategoryProductService {
             default -> List.of();
         };
     }
+
+    public CategoryProductRes getById(String category, Long id) {
+        Object entity = switch (category.toLowerCase()) {
+            case "netflix" -> netflixRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "adobe" -> adobeRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "google" -> googleRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "microsoft" -> microsoftRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "spotify" -> spotifyRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "canva" -> canvaRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "ai" -> aiRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "bao-mat" -> baoMatRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            case "games" -> gamesRep.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            default -> throw new RuntimeException("Category không hợp lệ");
+        };
+        return toRes(entity);
+    }
 }
