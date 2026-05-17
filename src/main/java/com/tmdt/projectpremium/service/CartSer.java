@@ -52,6 +52,18 @@ public class CartSer {
         cartItemRep.save(cartItem);
     }
 
+    // Just Get Cart Item Id
+    public List<Long> getCartItemId(long userId) {
+        List<Long> list = new ArrayList<>();
+        Cart cart = checkUserHaveCart(userId);
+        List<CartItem> cartItemList = cartItemRep.findByCartId(cart.getId());
+        for (CartItem cartItem : cartItemList) {
+            list.add(cartItem.getId());
+        }
+
+        return list;
+    }
+
     // Show Your Cart
     public List<ShowCartRes> showYourCart(long userId) {
         Cart cart = checkUserHaveCart(userId);
@@ -75,6 +87,7 @@ public class CartSer {
     }
 
     // Add To Cart
+    // chua xu ly trung item
     public void addToCart(AddToCartReq req) { // cartItem
         Cart cart = checkUserHaveCart(req.getUserId());
         Product product = productRep.findById(req.getProductId()).orElseThrow(() -> new RuntimeException("Không tìm thấy product_id:" + req.getProductId()));
