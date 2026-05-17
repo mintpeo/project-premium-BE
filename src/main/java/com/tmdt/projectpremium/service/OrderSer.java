@@ -1,5 +1,7 @@
 package com.tmdt.projectpremium.service;
 
+import com.tmdt.projectpremium.dto.OrderItemResponseDTO;
+import com.tmdt.projectpremium.dto.OrderResponseDTO;
 import com.tmdt.projectpremium.dto.request.AddOrderReq;
 import com.tmdt.projectpremium.dto.request.OrderItemReq;
 import com.tmdt.projectpremium.dto.request.OrderReq;
@@ -13,9 +15,11 @@ import com.tmdt.projectpremium.repository.ProductRep;
 import com.tmdt.projectpremium.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,5 +69,37 @@ public class OrderSer {
         List<Long> cartItemIdList = cartSer.getCartItemId(req.getUserId());
         for (Long number : cartItemIdList) cartSer.removeProductInCart(number);
         return true;
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponseDTO> getUserOrderHistoryByStatus(Long userId, String status) {
+
+        // 👈 2. Truyền cả 2 tham số userId và status vào hàm của Repository
+        List<Order> orders = rep.findByUserIdAndOrderStatusOrderByIdDesc(userId, status);
+
+        return orders.stream().map(order -> {
+            OrderResponseDTO dto = new OrderResponseDTO();
+            dto.setOrderId("" + order.getId());
+            dto.setCreatedAt(order.getOrderDate());
+            dto.setStatus(order.getOrderStatus());
+            dto.setTotalPrice(order.getTotalPrice());
+
+            // Map danh sách OrderItem sang OrderItemResponseDTO
+            List<OrderItemResponseDTO> itemDTOs = order.getOrderItems().stream().map(item -> {
+                OrderItemResponseDTO itemDTO = new OrderItemResponseDTO();
+
+                // Nối chuỗi tên sản phẩm động: "Tên + (Thời hạn - Loại User)"
+                String fullName = item.getProduct().getName() + " (" + item.getDuration() + " - " + item.getTypeUser() + ")";
+                itemDTO.setProductName(fullName);
+
+                itemDTO.setQuantity(item.getQuantity());
+                itemDTO.setPrice(item.getProduct().getPrice()); // Lấy giá hiện tại từ bảng Product
+                itemDTO.setProductImg(item.getProduct().getImg());
+                return itemDTO;
+            }).collect(Collectors.toList());
+
+            dto.setItems(itemDTOs);
+            return dto;
+        }).collect(Collectors.toList());
     }
 }
