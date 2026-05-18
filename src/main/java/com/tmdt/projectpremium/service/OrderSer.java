@@ -31,7 +31,7 @@ public class OrderSer {
     private final CartSer cartSer;
 
     // Save The Order
-    public boolean saveOrder(AddOrderReq orderReq) {
+    public Order saveOrder(AddOrderReq orderReq) {
         OrderReq req = orderReq.getOrderInfo();
         List<OrderItemReq> itemReqList = orderReq.getItems();
 
@@ -68,7 +68,7 @@ public class OrderSer {
         // delete items after add order success
         List<Long> cartItemIdList = cartSer.getCartItemId(req.getUserId());
         for (Long number : cartItemIdList) cartSer.removeProductInCart(number);
-        return true;
+        return order;
     }
 
     @Transactional(readOnly = true)
@@ -95,11 +95,23 @@ public class OrderSer {
                 itemDTO.setQuantity(item.getQuantity());
                 itemDTO.setPrice(item.getProduct().getPrice()); // Lấy giá hiện tại từ bảng Product
                 itemDTO.setProductImg(item.getProduct().getImg());
+                itemDTO.setKeyCode(item.getKeyCode());
                 return itemDTO;
             }).collect(Collectors.toList());
 
             dto.setItems(itemDTOs);
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public boolean cancelOrder(Long orderId) {
+        Order order = rep.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
+        if ("PENDING".equals(order.getOrderStatus()) || "PROCESSING".equals(order.getOrderStatus())) {
+            order.setOrderStatus("CANCELLED");
+            rep.save(order);
+            return true;
+        }
+        return false;
     }
 }

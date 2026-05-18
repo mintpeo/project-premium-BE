@@ -11,4 +11,5 @@ public class OrderItemResponseDTO {
     private int quantity;
     private int price;
     private String productImg;
+    private String keyCode;
 }

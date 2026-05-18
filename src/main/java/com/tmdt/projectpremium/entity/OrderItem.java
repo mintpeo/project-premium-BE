@@ -33,4 +33,7 @@ public class OrderItem {
 
     @Column(name = "duration")
     private String duration;
+
+    @Column(name = "key_code")
+    private String keyCode;
 }
