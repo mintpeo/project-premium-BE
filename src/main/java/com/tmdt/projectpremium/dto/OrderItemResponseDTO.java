@@ -7,6 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderItemResponseDTO {
+    private Long productId;
     private String productName;
     private int quantity;
     private int price;

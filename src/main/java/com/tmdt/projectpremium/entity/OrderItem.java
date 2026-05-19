@@ -36,4 +36,7 @@ public class OrderItem {
 
     @Column(name = "key_code")
     private String keyCode;
+
+    @Column(name = "price")
+    private Integer price;
 }

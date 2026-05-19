@@ -42,7 +42,7 @@ public class PaymentCon {
                     if (orderOpt.isPresent()) {
                         Order order = orderOpt.get();
                         order.setPaymentStatus("PAID");
-                        order.setOrderStatus("SUCCESS");
+                        order.setOrderStatus("PROCESSING");
 
                         for (OrderItem item : order.getOrderItems()) {
                             if (item.getKeyCode() == null || item.getKeyCode().isEmpty()) {
