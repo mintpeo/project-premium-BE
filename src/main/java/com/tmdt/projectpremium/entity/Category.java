@@ -22,4 +22,7 @@ public class Category {
 
     @Column(name = "icon")
     private String icon;
+
+    @Column(name = "is_active")
+    private boolean isActive;
 }
