@@ -33,7 +33,8 @@ public class OrderCon {
         try {
             Order order = ser.saveOrder(req);
 
-            String description = "Thanh toan don " + order.getId();
+            // Rút gọn mô tả để không vượt quá 25 ký tự của PayOS
+            String description = "TT " + order.getId();
             // PayOS requires orderCode to be integer <= 9007199254740991
             long orderCode = order.getId();
             int amount = order.getTotalPrice();
@@ -116,7 +117,8 @@ public class OrderCon {
                 throw new RuntimeException("Đơn hàng này không ở trạng thái chờ thanh toán!");
             }
 
-            String description = "Thanh toan don " + order.getId();
+            // Rút gọn mô tả để không vượt quá 25 ký tự của PayOS
+            String description = "TT " + order.getId();
             long orderCode = order.getId();
             int amount = order.getTotalPrice();
             String returnUrl = "http://localhost:5173/payment/success";

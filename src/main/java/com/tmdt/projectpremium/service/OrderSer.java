@@ -41,6 +41,9 @@ public class OrderSer {
 
         // set up Order
         Order order = new Order();
+        // Tạo ID là số nguyên 15 chữ số (Timestamp + 2 số ngẫu nhiên) để lưu thẳng vào DB
+        long generatedId = Long.parseLong(System.currentTimeMillis() + String.format("%02d", (int)(Math.random() * 100)));
+        order.setId(generatedId);
         order.setUser(user);
         order.setFullName(req.getFullName());
         order.setPhoneNumber(req.getPhoneNumber());

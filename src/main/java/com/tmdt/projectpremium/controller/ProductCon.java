@@ -23,4 +23,9 @@ public class ProductCon {
     public ProductInfoRes getProductById(@PathVariable long productId) {
         return ser.getProductById(productId);
     }
+
+    @GetMapping("/category/{categoryId}")
+    public List<ProductInfoRes> getProductsByCategory(@PathVariable long categoryId) {
+        return ser.getProductsByCategoryId(categoryId);
+    }
 }
