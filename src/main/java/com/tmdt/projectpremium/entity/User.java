@@ -42,6 +42,9 @@ public class User {
     @Column(name = "seller_verified", nullable = false)
     private boolean sellerVerified = false;
 
+    @Column(name = "banned", nullable = false)
+    private boolean banned = false;
+
     public enum Role {
         CUSTOMER, SELLER, ADMIN
     }

@@ -42,7 +42,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/order/repay/**","/api/auth/**", "/api/user/**", "/api/product/**", "/api/category/**", "/api/categories/**", "/api/cart/**", "/api/cartItem/**", "/api/review/**", "/api/seed/**", "/api/order/**", "/api/payment/**", "/api/admin/**", "/api/seller/**", "/api/upload/**").permitAll()
+                .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/order/repay/**","/api/auth/**", "/api/user/**", "/api/product/**", "/api/category/**", "/api/categories/**", "/api/cart/**", "/api/cartItem/**", "/api/review/**", "/api/comment/**", "/api/seed/**", "/api/order/**", "/api/payment/**", "/api/admin/**", "/api/seller/**", "/api/upload/**").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();

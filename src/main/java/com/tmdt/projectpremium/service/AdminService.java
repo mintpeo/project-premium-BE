@@ -1,19 +1,10 @@
 package com.tmdt.projectpremium.service;
 
-import com.tmdt.projectpremium.entity.Category;
-import com.tmdt.projectpremium.entity.Order;
-import com.tmdt.projectpremium.entity.Product;
-import com.tmdt.projectpremium.entity.ProductCate;
-import com.tmdt.projectpremium.entity.User;
-import com.tmdt.projectpremium.entity.OrderItem;
-import com.tmdt.projectpremium.repository.CategoryRepository;
-import com.tmdt.projectpremium.repository.OrderItemRep;
-import com.tmdt.projectpremium.repository.OrderRep;
-import com.tmdt.projectpremium.repository.ProductCateRepository;
-import com.tmdt.projectpremium.repository.ProductRep;
-import com.tmdt.projectpremium.repository.UserRepository;
+import com.tmdt.projectpremium.entity.*;
+import com.tmdt.projectpremium.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +23,12 @@ public class AdminService {
     private final CategoryRepository categoryRep;
     private final ProductCateRepository productCateRep;
     private final OrderItemRep orderItemRep;
+    private final ReviewRepository reviewRep;
+    private final CouponRepository couponRep;
+    private final ProductKeyRepository productKeyRep;
+    private final RefundRequestRepository refundRep;
+    private final CommentRepository commentRep;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardStats() {
@@ -53,8 +50,43 @@ public class AdminService {
         orderStatusCounts.put("CANCELLED", orderRep.countByOrderStatus("CANCELLED"));
         stats.put("orderStatusCounts", orderStatusCounts);
 
-        List<Product> topProducts = productRep.findAll();
+        List<Product> topProducts = productRep.findAll().stream()
+                .sorted((a, b) -> Integer.compare(
+                    b.getSold() != null ? b.getSold() : 0,
+                    a.getSold() != null ? a.getSold() : 0
+                ))
+                .limit(10)
+                .toList();
         stats.put("topProducts", topProducts);
+
+        Map<String, Object> categoryRevenue = new HashMap<>();
+        List<Order> successOrders = orderRep.findSuccessOrdersSince(LocalDateTime.of(2000, 1, 1, 0, 0));
+        Map<String, Long> catRevMap = new HashMap<>();
+        for (Order o : successOrders) {
+            for (OrderItem item : o.getOrderItems()) {
+                Product p = item.getProduct();
+                if (p.getProductCates() != null) {
+                    for (ProductCate pc : p.getProductCates()) {
+                        String catName = pc.getCategory().getName();
+                        catRevMap.merge(catName, (long) item.getPrice() * item.getQuantity(), Long::sum);
+                    }
+                }
+            }
+        }
+        stats.put("categoryRevenue", catRevMap);
+
+        long newCustomers = userRep.countByCreatedAtAfter(LocalDateTime.now().minusDays(30));
+        stats.put("newCustomers30d", newCustomers);
+        stats.put("totalCustomers", userRep.count());
+
+        long pendingProducts = productRep.countByApprovedFalse();
+        stats.put("pendingProducts", pendingProducts);
+
+        long pendingReviews = reviewRep.countByApprovedFalse();
+        stats.put("pendingReviews", pendingReviews);
+
+        long pendingComments = commentRep.countByApprovedFalse();
+        stats.put("pendingComments", pendingComments);
 
         return stats;
     }
@@ -274,6 +306,345 @@ public class AdminService {
                 .orElseThrow(() -> new RuntimeException("Seller not found with id: " + id));
         seller.setSellerVerified(false);
         userRep.save(seller);
+    }
+
+    @Transactional
+    public User toggleUserBan(Long userId) {
+        User user = userRep.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        user.setBanned(!user.isBanned());
+        return userRep.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(Long userId, String newPassword) {
+        User user = userRep.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRep.save(user);
+    }
+
+    @Transactional
+    public Order updateOrderStatus(Long orderId, String newStatus) {
+        Order order = orderRep.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+        order.setOrderStatus(newStatus);
+        return orderRep.save(order);
+    }
+
+    @Transactional
+    public Product approveProduct(Long productId) {
+        Product product = productRep.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        product.setApproved(true);
+        return productRep.save(product);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> getPendingProducts() {
+        return productRep.findByApprovedFalse();
+    }
+
+    @Transactional
+    public Review approveReview(Long reviewId) {
+        Review review = reviewRep.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
+        review.setApproved(true);
+        return reviewRep.save(review);
+    }
+
+    @Transactional
+    public void deleteReview(Long reviewId) {
+        reviewRep.deleteById(reviewId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Review> getPendingReviews() {
+        return reviewRep.findByApprovedFalseOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Comment> getPendingComments() {
+        return commentRep.findByApprovedFalseOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public Comment approveComment(Long commentId) {
+        Comment comment = commentRep.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found with id: " + commentId));
+        comment.setApproved(true);
+        return commentRep.save(comment);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId) {
+        commentRep.deleteById(commentId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getBestSellingProductTypes() {
+        List<Order> successOrders = orderRep.findSuccessOrdersSince(LocalDateTime.of(2000, 1, 1, 0, 0));
+        Map<String, Object> typeMap = new LinkedHashMap<>();
+        for (Order o : successOrders) {
+            for (OrderItem item : o.getOrderItems()) {
+                Product p = item.getProduct();
+                long revenue = (long) item.getPrice() * item.getQuantity();
+                int sold = item.getQuantity();
+                if (p.getProductCates() != null) {
+                    for (ProductCate pc : p.getProductCates()) {
+                        String catName = pc.getCategory().getName();
+                        typeMap.merge(catName, Map.of(
+                            "revenue", revenue,
+                            "sold", sold
+                        ), (old, add) -> Map.of(
+                            "revenue", ((Number)((Map)old).get("revenue")).longValue() + ((Number)((Map)add).get("revenue")).longValue(),
+                            "sold", ((Number)((Map)old).get("sold")).intValue() + ((Number)((Map)add).get("sold")).intValue()
+                        ));
+                    }
+                }
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : typeMap.entrySet()) {
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("name", entry.getKey());
+            point.put("revenue", ((Map)entry.getValue()).get("revenue"));
+            point.put("sold", ((Map)entry.getValue()).get("sold"));
+            result.add(point);
+        }
+        result.sort((a, b) -> Integer.compare(
+            ((Number)b.get("sold")).intValue(),
+            ((Number)a.get("sold")).intValue()
+        ));
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getRevenueByCategory() {
+        List<Order> successOrders = orderRep.findSuccessOrdersSince(LocalDateTime.of(2000, 1, 1, 0, 0));
+        Map<String, Long> catRevMap = new LinkedHashMap<>();
+        for (Order o : successOrders) {
+            for (OrderItem item : o.getOrderItems()) {
+                Product p = item.getProduct();
+                if (p.getProductCates() != null) {
+                    for (ProductCate pc : p.getProductCates()) {
+                        String catName = pc.getCategory().getName();
+                        catRevMap.merge(catName, (long) item.getPrice() * item.getQuantity(), Long::sum);
+                    }
+                }
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : catRevMap.entrySet()) {
+            Map<String, Object> point = new HashMap<>();
+            point.put("name", entry.getKey());
+            point.put("revenue", entry.getValue());
+            result.add(point);
+        }
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCustomerStats() {
+        Map<String, Object> stats = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+        stats.put("total", userRep.count());
+        stats.put("new30d", userRep.countByCreatedAtAfter(now.minusDays(30)));
+        stats.put("new7d", userRep.countByCreatedAtAfter(now.minusDays(7)));
+        stats.put("newToday", userRep.countByCreatedAtAfter(now.withHour(0).withMinute(0).withSecond(0)));
+        return stats;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Coupon> getAllCoupons() {
+        return couponRep.findAll();
+    }
+
+    @Transactional
+    public Coupon createCoupon(String code, String discountType, int discountValue, Integer minOrderValue, Integer maxUses, LocalDateTime expiryDate) {
+        if (couponRep.existsByCode(code)) {
+            throw new RuntimeException("Mã giảm giá đã tồn tại");
+        }
+        Coupon coupon = Coupon.builder()
+                .code(code.toUpperCase())
+                .discountType(discountType)
+                .discountValue(discountValue)
+                .minOrderValue(minOrderValue)
+                .maxUses(maxUses)
+                .expiryDate(expiryDate)
+                .active(true)
+                .build();
+        return couponRep.save(coupon);
+    }
+
+    @Transactional
+    public Coupon updateCoupon(Long id, String code, String discountType, Integer discountValue, Integer minOrderValue, Integer maxUses, LocalDateTime expiryDate, Boolean active) {
+        Coupon coupon = couponRep.findById(id)
+                .orElseThrow(() -> new RuntimeException("Coupon not found with id: " + id));
+        if (code != null) coupon.setCode(code.toUpperCase());
+        if (discountType != null) coupon.setDiscountType(discountType);
+        if (discountValue != null) coupon.setDiscountValue(discountValue);
+        if (minOrderValue != null) coupon.setMinOrderValue(minOrderValue);
+        if (maxUses != null) coupon.setMaxUses(maxUses);
+        if (expiryDate != null) coupon.setExpiryDate(expiryDate);
+        if (active != null) coupon.setActive(active);
+        return couponRep.save(coupon);
+    }
+
+    @Transactional
+    public void deleteCoupon(Long id) {
+        couponRep.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductKey> getAllProductKeys() {
+        return productKeyRep.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductKey> getKeysByProduct(Long productId) {
+        return productKeyRep.findByProductId(productId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getKeyStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalKeys", productKeyRep.count());
+        stats.put("soldKeys", productKeyRep.countBySoldTrue());
+        stats.put("availableKeys", productKeyRep.countBySoldFalse());
+        return stats;
+    }
+
+    @Transactional
+    public ProductKey addProductKey(Long productId, String keyCode) {
+        Product product = productRep.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        ProductKey pk = ProductKey.builder()
+                .product(product)
+                .keyCode(keyCode)
+                .sold(false)
+                .build();
+        return productKeyRep.save(pk);
+    }
+
+    @Transactional
+    public void addProductKeysBulk(Long productId, List<String> keyCodes) {
+        Product product = productRep.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        for (String code : keyCodes) {
+            ProductKey pk = ProductKey.builder()
+                    .product(product)
+                    .keyCode(code)
+                    .sold(false)
+                    .build();
+            productKeyRep.save(pk);
+        }
+    }
+
+    @Transactional
+    public void deleteProductKey(Long id) {
+        productKeyRep.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RefundRequest> getAllRefundRequests() {
+        return refundRep.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getRefundStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", refundRep.count());
+        stats.put("pending", refundRep.countByStatus("PENDING"));
+        stats.put("approved", refundRep.countByStatus("APPROVED"));
+        stats.put("rejected", refundRep.countByStatus("REJECTED"));
+        return stats;
+    }
+
+    @Transactional
+    public RefundRequest processRefund(Long id, String status, String adminNote, Long adminId) {
+        RefundRequest req = refundRep.findById(id)
+                .orElseThrow(() -> new RuntimeException("Refund request not found with id: " + id));
+        User admin = userRep.findById(adminId)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+        req.setStatus(status);
+        if (adminNote != null) req.setAdminNote(adminNote);
+        req.setProcessedBy(admin);
+        req.setProcessedAt(LocalDateTime.now());
+        return refundRep.save(req);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getReturningCustomerStats() {
+        Map<String, Object> stats = new HashMap<>();
+        List<Order> allOrders = orderRep.findAll();
+        Map<Long, Long> userOrderCounts = allOrders.stream()
+                .filter(o -> o.getUser() != null && "SUCCESS".equals(o.getOrderStatus()))
+                .collect(Collectors.groupingBy(o -> o.getUser().getId(), Collectors.counting()));
+        long returning = userOrderCounts.values().stream().filter(c -> c >= 2).count();
+        long oneTime = userOrderCounts.values().stream().filter(c -> c == 1).count();
+        stats.put("returningCustomers", returning);
+        stats.put("oneTimeCustomers", oneTime);
+        return stats;
+    }
+
+    public String exportOrdersToCsv() {
+        List<Order> orders = orderRep.findAllByOrderByOrderDateDesc();
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID,Ngày,Khách hàng,Email,SĐT,Tổng tiền,Thanh toán,Trạng thái\n");
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        for (Order o : orders) {
+            sb.append(o.getId()).append(",");
+            sb.append(o.getOrderDate() != null ? o.getOrderDate().format(fmt) : "").append(",");
+            sb.append(escapeCsv(o.getFullName())).append(",");
+            sb.append(escapeCsv(o.getUser() != null ? o.getUser().getEmail() : "")).append(",");
+            sb.append(escapeCsv(o.getPhoneNumber())).append(",");
+            sb.append(o.getTotalPrice()).append(",");
+            sb.append(o.getPaymentStatus()).append(",");
+            sb.append(o.getOrderStatus()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    public String exportUsersToCsv() {
+        List<User> users = userRep.findAll();
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID,Họ tên,Email,SĐT,Vai trò,Ngày tạo,Khoá\n");
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        for (User u : users) {
+            sb.append(u.getId()).append(",");
+            sb.append(escapeCsv(u.getFullName())).append(",");
+            sb.append(escapeCsv(u.getEmail())).append(",");
+            sb.append(escapeCsv(u.getPhoneNumber())).append(",");
+            sb.append(u.getRole()).append(",");
+            sb.append(u.getCreatedAt() != null ? u.getCreatedAt().format(fmt) : "").append(",");
+            sb.append(u.isBanned() ? "Có" : "Không").append("\n");
+        }
+        return sb.toString();
+    }
+
+    public String exportProductsToCsv() {
+        List<Product> products = productRep.findAll();
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID,Tên sản phẩm,Giá bán,Giá gốc,Đã bán,Seller,Trạng thái\n");
+        for (Product p : products) {
+            sb.append(p.getId()).append(",");
+            sb.append(escapeCsv(p.getName())).append(",");
+            sb.append(p.getPrice()).append(",");
+            sb.append(p.getPriceOri()).append(",");
+            sb.append(p.getSold() != null ? p.getSold() : 0).append(",");
+            sb.append(escapeCsv(p.getSeller() != null ? p.getSeller().getFullName() : "Sàn")).append(",");
+            sb.append(p.isApproved() ? "Đã duyệt" : "Chờ duyệt").append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     public User getCurrentUser() {

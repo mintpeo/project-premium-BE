@@ -28,4 +28,15 @@ public class ProductCon {
     public List<ProductInfoRes> getProductsByCategory(@PathVariable long categoryId) {
         return ser.getProductsByCategoryId(categoryId);
     }
+
+    @GetMapping("/search")
+    public List<ProductInfoRes> searchProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Integer minPrice,
+            @RequestParam(required = false) Integer maxPrice,
+            @RequestParam(required = false, defaultValue = "sold") String sortBy,
+            @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        return ser.searchProducts(keyword, categoryId, minPrice, maxPrice, sortBy, sortDir);
+    }
 }

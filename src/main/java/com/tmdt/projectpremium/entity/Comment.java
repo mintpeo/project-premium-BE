@@ -5,9 +5,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "comments")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Review {
+public class Comment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,11 +19,11 @@ public class Review {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false)
-    private Integer stars;
-
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @Column(name = "parent_id")
+    private Long parentId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
