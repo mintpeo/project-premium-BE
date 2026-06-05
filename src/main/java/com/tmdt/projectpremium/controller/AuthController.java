@@ -5,11 +5,8 @@ import com.tmdt.projectpremium.dto.AuthResponse;
 import com.tmdt.projectpremium.dto.LoginRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.dto.SendOtpRequest;
-import com.tmdt.projectpremium.dto.request.LoginGoogleReq;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.service.AuthService;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true")
 public class AuthController {
 
     private final AuthService authService;
