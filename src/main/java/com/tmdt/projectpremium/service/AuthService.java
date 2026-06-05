@@ -4,13 +4,19 @@ import com.tmdt.projectpremium.dto.ForgotPasswordRequest;
 import com.tmdt.projectpremium.dto.LoginRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.dto.SendOtpRequest;
+import com.tmdt.projectpremium.dto.request.LoginGoogleReq;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +29,40 @@ public class AuthService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
     private static final int PASSWORD_LENGTH = 10;
+
+    // Save/Load User Google
+    public User createOrLoadUserGoogle(OAuth2User userGoogle) {
+        String email = userGoogle.getAttribute("email");
+        String name = userGoogle.getAttribute("name");
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            // save
+            User newUser = User.builder()
+                    .fullName(name)
+                    .email(email)
+                    .password(passwordEncoder.encode("GOOGLE_LOGIN"))
+                    .role(User.Role.CUSTOMER)
+                    .build();
+
+            return userRepository.save(newUser);
+        }
+        return user;
+    }
+
+    // Load User Google
+    public LoginGoogleReq infoUser(OAuth2User user) {
+        OAuth2User userGoogle = loginGoogle(user);
+        LoginGoogleReq req = new LoginGoogleReq();
+        req.setEmail(userGoogle.getAttribute("email"));
+        req.setName(userGoogle.getAttribute("name"));
+        return req;
+    }
+
+    // Login Google
+    public OAuth2User loginGoogle(@AuthenticationPrincipal OAuth2User user) {
+        return user;
+    }
 
     // Gửi OTP về email để xác nhận đăng ký
     public void sendRegisterOtp(SendOtpRequest request) {
