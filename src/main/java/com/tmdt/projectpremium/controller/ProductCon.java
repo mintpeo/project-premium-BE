@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/product")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
 @RequiredArgsConstructor
 public class ProductCon {
     private final ProductSer ser;
@@ -22,5 +22,10 @@ public class ProductCon {
     @GetMapping("/{productId}")
     public ProductInfoRes getProductById(@PathVariable long productId) {
         return ser.getProductById(productId);
+    }
+
+    @GetMapping("/category/{categoryId}")
+    public List<ProductInfoRes> getProductsByCategory(@PathVariable long categoryId) {
+        return ser.getProductsByCategoryId(categoryId);
     }
 }

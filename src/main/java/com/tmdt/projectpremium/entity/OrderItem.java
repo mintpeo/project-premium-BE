@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "order_detail")
+@Table(name = "order_items")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,4 +33,10 @@ public class OrderItem {
 
     @Column(name = "duration")
     private String duration;
+
+    @Column(name = "key_code")
+    private String keyCode;
+
+    @Column(name = "price")
+    private Integer price;
 }
