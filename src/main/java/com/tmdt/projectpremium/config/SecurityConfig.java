@@ -23,11 +23,13 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                                .requestMatchers("/api/auth/**", "/api/user/**").permitAll()
-                    .requestMatchers("api/product/**").permitAll()
-//                    .requestMatchers("api/cartItem/**").authenticated()
+                                .requestMatchers("/api/auth/**", "/api/user/**",
+                                        "/api/product/**",
+                                        "/api/cartItem/**",
+                                        "/oauth2/**",
+                                        "/login/**").permitAll()
                                 .anyRequest().permitAll()
-                );
+                ).oauth2Login(oauth -> oauth.defaultSuccessUrl("http://localhost:5173/oauth-google", true));
         return http.build();
     }
 }
