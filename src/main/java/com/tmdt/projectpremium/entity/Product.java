@@ -1,6 +1,6 @@
 package com.tmdt.projectpremium.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -34,6 +34,11 @@ public class Product {
 
     @Column(name = "price")
     private Integer price;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "seller_id")
+    @JsonIgnoreProperties({"password", "phoneNumber", "createdAt", "role", "sellerVerified"})
+    private User seller;
 
     @OneToMany(mappedBy = "product")
     private List<ProductCate> productCates;

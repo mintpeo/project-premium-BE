@@ -29,6 +29,7 @@ public class OrderSer {
     private final UserRepository userRep;
     private final ProductRep productRep;
     private final CartSer cartSer;
+    private final SellerBalanceService sellerBalanceService;
 
     // Save The Order
     public Order saveOrder(AddOrderReq orderReq) {
@@ -137,6 +138,7 @@ public class OrderSer {
         if ("PROCESSING".equals(order.getOrderStatus())) {
             order.setOrderStatus("SUCCESS");
             rep.save(order);
+            sellerBalanceService.processOrderEarnings(order);
             return true;
         }
         return false;
@@ -197,6 +199,7 @@ public class OrderSer {
         if (allAssigned) {
             order.setOrderStatus("SUCCESS");
             rep.save(order);
+            sellerBalanceService.processOrderEarnings(order);
         }
     }
 }

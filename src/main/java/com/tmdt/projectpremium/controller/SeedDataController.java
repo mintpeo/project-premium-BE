@@ -1,17 +1,27 @@
 package com.tmdt.projectpremium.controller;
 
+import com.tmdt.projectpremium.entity.Order;
+import com.tmdt.projectpremium.entity.OrderItem;
+import com.tmdt.projectpremium.entity.Product;
 import com.tmdt.projectpremium.entity.Review;
 import com.tmdt.projectpremium.entity.User;
+import com.tmdt.projectpremium.repository.OrderItemRep;
+import com.tmdt.projectpremium.repository.OrderRep;
+import com.tmdt.projectpremium.repository.ProductRep;
 import com.tmdt.projectpremium.repository.ReviewRepository;
 import com.tmdt.projectpremium.repository.UserRepository;
+import com.tmdt.projectpremium.service.SellerBalanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @RestController
 @RequestMapping("/api/seed")
@@ -22,6 +32,10 @@ public class SeedDataController {
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OrderRep orderRep;
+    private final OrderItemRep orderItemRep;
+    private final ProductRep productRep;
+    private final SellerBalanceService sellerBalanceService;
 
     @PostMapping("/reviews")
     public ResponseEntity<String> seedReviews() {
@@ -158,5 +172,203 @@ public class SeedDataController {
             .createdAt(LocalDateTime.now().minusDays((long) (Math.random() * 30)))
             .build();
         reviewRepository.save(review);
+    }
+
+    @PostMapping("/orders")
+    public ResponseEntity<String> seedOrders() {
+        try {
+            List<User> users = createSampleUsers();
+            List<Product> products = productRep.findAll();
+
+            if (products.isEmpty()) {
+                return ResponseEntity.badRequest().body("❌ Không có sản phẩm nào trong DB. Hãy thêm sản phẩm trước.");
+            }
+
+            Random rand = new Random();
+            long maxId = orderRep.findAll().stream().mapToLong(Order::getId).max().orElse(0);
+            long orderId = maxId + 1;
+            int count = 0;
+
+            String[] statuses = {"SUCCESS", "SUCCESS", "SUCCESS", "SUCCESS", "PENDING", "PROCESSING", "CANCELLED"};
+            String[] paymentMethods = {"VNPAY", "MOMO", "BANK_TRANSFER", "COD"};
+            String[] fullNames = {"Nguyễn Văn A", "Trần Thị B", "Lê Văn C", "Phạm Thị D", "Hoàng Văn E"};
+            String[] phones = {"0901234567", "0912345678", "0923456789", "0934567890", "0945678901"};
+
+            for (int daysAgo = 90; daysAgo >= 0; daysAgo--) {
+                int ordersToday = 2 + rand.nextInt(3);
+
+                for (int o = 0; o < ordersToday; o++) {
+                    User user = users.get(rand.nextInt(users.size()));
+                    String status = statuses[rand.nextInt(statuses.length)];
+                    int totalPrice = 0;
+                    int itemCount = 1 + rand.nextInt(3);
+                    List<OrderItem> items = new ArrayList<>();
+
+                    for (int i = 0; i < itemCount; i++) {
+                        Product product = products.get(rand.nextInt(products.size()));
+                        int qty = 1 + rand.nextInt(2);
+                        int price = product.getPrice() != null ? product.getPrice().intValue() : (50000 + rand.nextInt(200000));
+                        int lineTotal = price * qty;
+                        totalPrice += lineTotal;
+
+                        OrderItem item = new OrderItem();
+                        item.setProduct(product);
+                        item.setQuantity(qty);
+                        item.setPrice(lineTotal);
+                        item.setTypeUser("");
+                        item.setDuration("");
+                        item.setKeyCode("");
+                        items.add(item);
+                    }
+
+                    Order order = new Order();
+                    order.setId(orderId++);
+                    order.setUser(user);
+                    order.setFullName(fullNames[rand.nextInt(fullNames.length)]);
+                    order.setPhoneNumber(phones[rand.nextInt(phones.length)]);
+                    order.setPaymentMethod(paymentMethods[rand.nextInt(paymentMethods.length)]);
+                    order.setPaymentStatus(status.equals("SUCCESS") ? "PAID" : "UNPAID");
+                    order.setOrderStatus(status);
+
+                    int hour = 7 + rand.nextInt(14);
+                    int minute = rand.nextInt(60);
+                    order.setOrderDate(LocalDateTime.of(LocalDate.now().minusDays(daysAgo), LocalTime.of(hour, minute)));
+
+                    order.setNote("");
+                    order.setTotalPrice(totalPrice);
+                    order.setOrderItems(items);
+
+                    for (OrderItem item : items) {
+                        item.setOrder(order);
+                    }
+
+                    orderRep.save(order);
+                    count++;
+                }
+            }
+
+            return ResponseEntity.ok("✅ Đã tạo thành công " + count + " đơn hàng mẫu (90 ngày)!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Lỗi: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/payment-test")
+    public ResponseEntity<String> seedPaymentTest() {
+        try {
+            List<User> users = createSampleUsers();
+
+            User seller = userRepository.findByEmail("seller@test.com").orElseGet(() -> {
+                User s = User.builder()
+                    .email("seller@test.com")
+                    .password(passwordEncoder.encode("123456"))
+                    .fullName("Nguyễn Văn Seller")
+                    .phoneNumber("0999888777")
+                    .role(User.Role.SELLER)
+                    .sellerVerified(true)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+                return userRepository.save(s);
+            });
+
+            User admin = userRepository.findByEmail("admin@test.com").orElseGet(() -> {
+                User a = User.builder()
+                    .email("admin@test.com")
+                    .password(passwordEncoder.encode("123456"))
+                    .fullName("Admin Master")
+                    .phoneNumber("0999888776")
+                    .role(User.Role.ADMIN)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+                return userRepository.save(a);
+            });
+
+            List<Product> allProducts = productRep.findAll();
+            List<Product> platformProducts = allProducts.stream().filter(p -> p.getSeller() == null).toList();
+            if (platformProducts.isEmpty()) {
+                return ResponseEntity.badRequest().body("❌ Không có sản phẩm platform nào. Hãy thêm sản phẩm trước.");
+            }
+
+            // Gán 3 sản phẩm đầu cho seller
+            List<Product> sellerProducts = new ArrayList<>();
+            for (int i = 0; i < Math.min(3, platformProducts.size()); i++) {
+                Product p = platformProducts.get(i);
+                p.setSeller(seller);
+                productRep.save(p);
+                sellerProducts.add(p);
+            }
+
+            // Tạo đơn hàng SUCCESS với sản phẩm của seller
+            Random rand = new Random();
+            long maxId = orderRep.findAll().stream().mapToLong(Order::getId).max().orElse(0);
+            long orderId = maxId + 1;
+            int count = 0;
+
+            String[] paymentMethods = {"VNPAY", "MOMO", "BANK_TRANSFER"};
+            String[] fullNames = {"Trần Văn Mua", "Lê Thị Khách", "Phạm Văn User", "Hoàng Thị Hàng"};
+            String[] phones = {"0901111222", "0912222333", "0923333444", "0944444555"};
+
+            // Tạo 15 đơn hàng SUCCESS trong 30 ngày
+            for (int daysAgo = 30; daysAgo >= 0; daysAgo -= 2) {
+                int ordersToday = 1 + rand.nextInt(2);
+
+                for (int o = 0; o < ordersToday; o++) {
+                    User buyer = users.get(rand.nextInt(users.size()));
+                    int totalPrice = 0;
+                    int itemCount = 1 + rand.nextInt(2);
+                    List<OrderItem> items = new ArrayList<>();
+
+                    for (int i = 0; i < itemCount; i++) {
+                        Product product = sellerProducts.get(rand.nextInt(sellerProducts.size()));
+                        int qty = 1;
+                        int price = product.getPrice() != null ? product.getPrice().intValue() : (50000 + rand.nextInt(200000));
+                        int lineTotal = price * qty;
+                        totalPrice += lineTotal;
+
+                        OrderItem item = new OrderItem();
+                        item.setProduct(product);
+                        item.setQuantity(qty);
+                        item.setPrice(lineTotal);
+                        item.setTypeUser("");
+                        item.setDuration("");
+                        item.setKeyCode("SEED-KEY-" + System.currentTimeMillis());
+                        items.add(item);
+                    }
+
+                    Order order = new Order();
+                    order.setId(orderId++);
+                    order.setUser(buyer);
+                    order.setFullName(fullNames[rand.nextInt(fullNames.length)]);
+                    order.setPhoneNumber(phones[rand.nextInt(phones.length)]);
+                    order.setPaymentMethod(paymentMethods[rand.nextInt(paymentMethods.length)]);
+                    order.setPaymentStatus("PAID");
+                    order.setOrderStatus("SUCCESS");
+
+                    int hour = 8 + rand.nextInt(12);
+                    int minute = rand.nextInt(60);
+                    order.setOrderDate(LocalDateTime.of(LocalDate.now().minusDays(daysAgo), LocalTime.of(hour, minute)));
+
+                    order.setNote("");
+                    order.setTotalPrice(totalPrice);
+                    order.setOrderItems(items);
+
+                    for (OrderItem item : items) {
+                        item.setOrder(order);
+                    }
+
+                    orderRep.save(order);
+
+                    // Ghi nhận thu nhập cho seller
+                    sellerBalanceService.processOrderEarnings(order);
+
+                    count++;
+                }
+            }
+
+            return ResponseEntity.ok("✅ Đã tạo " + count + " đơn hàng test (seller: " + seller.getEmail()
+                + ", admin: " + admin.getEmail() + ", password: 123456)");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Lỗi: " + e.getMessage());
+        }
     }
 }

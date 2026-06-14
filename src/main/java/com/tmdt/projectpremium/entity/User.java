@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Column(name = "full_name")
@@ -36,6 +38,9 @@ public class User {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "seller_verified", nullable = false)
+    private boolean sellerVerified = false;
 
     public enum Role {
         CUSTOMER, SELLER, ADMIN
