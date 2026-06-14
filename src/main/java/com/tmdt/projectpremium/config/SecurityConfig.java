@@ -44,7 +44,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/order/repay/**","/api/auth/**", "/api/user/**", "/api/product/**", "/api/category/**", "/api/categories/**", "/api/cart/**", "/api/cartItem/**", "/api/review/**", "/api/seed/**", "/api/order/**", "/api/payment/**", "/api/admin/**", "/api/seller/**", "/api/upload/**").permitAll()
                 .anyRequest().authenticated()
-            );
+            ).oauth2Login(oauth -> oauth.defaultSuccessUrl("http://localhost:5173/oauth-google", true));
         return http.build();
     }
 }
