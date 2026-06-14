@@ -1,15 +1,13 @@
 package com.tmdt.projectpremium.controller;
 
-import com.tmdt.projectpremium.entity.Category;
-import com.tmdt.projectpremium.entity.Order;
-import com.tmdt.projectpremium.entity.Product;
-import com.tmdt.projectpremium.entity.User;
+import com.tmdt.projectpremium.entity.*;
 import com.tmdt.projectpremium.service.AdminService;
 import com.tmdt.projectpremium.service.SellerBalanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -188,6 +186,350 @@ public class AdminController {
         try {
             adminService.banSeller(id);
             return ResponseEntity.ok(Map.of("message", "Seller banned successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/users/{userId}/ban")
+    public ResponseEntity<?> toggleUserBan(@PathVariable Long userId) {
+        try {
+            User updated = adminService.toggleUserBan(userId);
+            return ResponseEntity.ok(Map.of(
+                "message", updated.isBanned() ? "Đã khoá tài khoản" : "Đã mở khoá tài khoản",
+                "banned", updated.isBanned()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/users/{userId}/reset-password")
+    public ResponseEntity<?> resetPassword(@PathVariable Long userId, @RequestBody Map<String, String> body) {
+        try {
+            String newPassword = body.get("password");
+            if (newPassword == null || newPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Mật khẩu mới không được để trống"));
+            }
+            adminService.resetPassword(userId, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Đã reset mật khẩu thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/orders/{orderId}/status")
+    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @RequestBody Map<String, String> body) {
+        try {
+            String newStatus = body.get("status");
+            if (newStatus == null || newStatus.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Status is required"));
+            }
+            Order updated = adminService.updateOrderStatus(orderId, newStatus);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/products/pending")
+    public ResponseEntity<?> getPendingProducts() {
+        try {
+            return ResponseEntity.ok(adminService.getPendingProducts());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/products/{id}/approve")
+    public ResponseEntity<?> approveProduct(@PathVariable Long id) {
+        try {
+            adminService.approveProduct(id);
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt sản phẩm"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/reviews/pending")
+    public ResponseEntity<?> getPendingReviews() {
+        try {
+            return ResponseEntity.ok(adminService.getPendingReviews());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/reviews/{id}/approve")
+    public ResponseEntity<?> approveReview(@PathVariable Long id) {
+        try {
+            adminService.approveReview(id);
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt đánh giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/reviews/{id}")
+    public ResponseEntity<?> deleteReview(@PathVariable Long id) {
+        try {
+            adminService.deleteReview(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá đánh giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/revenue/by-category")
+    public ResponseEntity<?> getRevenueByCategory() {
+        try {
+            return ResponseEntity.ok(adminService.getRevenueByCategory());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/comments/pending")
+    public ResponseEntity<?> getPendingComments() {
+        try {
+            return ResponseEntity.ok(adminService.getPendingComments());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/comments/{id}/approve")
+    public ResponseEntity<?> approveComment(@PathVariable Long id) {
+        try {
+            adminService.approveComment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt bình luận"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/comments/{id}")
+    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+        try {
+            adminService.deleteComment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá bình luận"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/best-selling-types")
+    public ResponseEntity<?> getBestSellingTypes() {
+        try {
+            return ResponseEntity.ok(adminService.getBestSellingProductTypes());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/customer-stats")
+    public ResponseEntity<?> getCustomerStats() {
+        try {
+            return ResponseEntity.ok(adminService.getCustomerStats());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/returning-customer-stats")
+    public ResponseEntity<?> getReturningCustomerStats() {
+        try {
+            return ResponseEntity.ok(adminService.getReturningCustomerStats());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/coupons")
+    public ResponseEntity<?> getAllCoupons() {
+        try {
+            return ResponseEntity.ok(adminService.getAllCoupons());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/coupons")
+    public ResponseEntity<?> createCoupon(@RequestBody Map<String, Object> body) {
+        try {
+            String code = (String) body.get("code");
+            String discountType = (String) body.get("discountType");
+            int discountValue = Integer.parseInt(body.get("discountValue").toString());
+            Integer minOrderValue = body.get("minOrderValue") != null ? Integer.valueOf(body.get("minOrderValue").toString()) : null;
+            Integer maxUses = body.get("maxUses") != null ? Integer.valueOf(body.get("maxUses").toString()) : null;
+            LocalDateTime expiryDate = body.get("expiryDate") != null ? LocalDateTime.parse(body.get("expiryDate").toString()) : null;
+            Coupon created = adminService.createCoupon(code, discountType, discountValue, minOrderValue, maxUses, expiryDate);
+            return ResponseEntity.ok(created);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/coupons/{id}")
+    public ResponseEntity<?> updateCoupon(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            String code = (String) body.get("code");
+            String discountType = (String) body.get("discountType");
+            Integer discountValue = body.get("discountValue") != null ? Integer.valueOf(body.get("discountValue").toString()) : null;
+            Integer minOrderValue = body.get("minOrderValue") != null ? Integer.valueOf(body.get("minOrderValue").toString()) : null;
+            Integer maxUses = body.get("maxUses") != null ? Integer.valueOf(body.get("maxUses").toString()) : null;
+            LocalDateTime expiryDate = body.get("expiryDate") != null ? LocalDateTime.parse(body.get("expiryDate").toString()) : null;
+            Boolean active = body.get("active") != null ? Boolean.valueOf(body.get("active").toString()) : null;
+            Coupon updated = adminService.updateCoupon(id, code, discountType, discountValue, minOrderValue, maxUses, expiryDate, active);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/coupons/{id}")
+    public ResponseEntity<?> deleteCoupon(@PathVariable Long id) {
+        try {
+            adminService.deleteCoupon(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá mã giảm giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/product-keys")
+    public ResponseEntity<?> getAllProductKeys() {
+        try {
+            return ResponseEntity.ok(adminService.getAllProductKeys());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/product-keys/stats")
+    public ResponseEntity<?> getKeyStats() {
+        try {
+            return ResponseEntity.ok(adminService.getKeyStats());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/product-keys/product/{productId}")
+    public ResponseEntity<?> getKeysByProduct(@PathVariable Long productId) {
+        try {
+            return ResponseEntity.ok(adminService.getKeysByProduct(productId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys")
+    public ResponseEntity<?> addProductKey(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            String keyCode = (String) body.get("keyCode");
+            ProductKey created = adminService.addProductKey(productId, keyCode);
+            return ResponseEntity.ok(created);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys/bulk")
+    public ResponseEntity<?> addProductKeysBulk(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            @SuppressWarnings("unchecked")
+            List<String> keyCodes = (List<String>) body.get("keyCodes");
+            if (keyCodes == null || keyCodes.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách key không được để trống"));
+            }
+            adminService.addProductKeysBulk(productId, keyCodes);
+            return ResponseEntity.ok(Map.of("message", "Đã thêm " + keyCodes.size() + " key thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/product-keys/{id}")
+    public ResponseEntity<?> deleteProductKey(@PathVariable Long id) {
+        try {
+            adminService.deleteProductKey(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá key"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/refunds")
+    public ResponseEntity<?> getAllRefundRequests() {
+        try {
+            return ResponseEntity.ok(adminService.getAllRefundRequests());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/refunds/stats")
+    public ResponseEntity<?> getRefundStats() {
+        try {
+            return ResponseEntity.ok(adminService.getRefundStats());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/refunds/{id}/process")
+    public ResponseEntity<?> processRefund(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            String status = (String) body.get("status");
+            String adminNote = (String) body.get("adminNote");
+            Long adminId = body.get("adminId") != null ? Long.valueOf(body.get("adminId").toString()) : null;
+            if (adminId == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "adminId is required"));
+            }
+            RefundRequest updated = adminService.processRefund(id, status, adminNote, adminId);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/export/orders")
+    public ResponseEntity<?> exportOrders() {
+        try {
+            String csv = adminService.exportOrdersToCsv();
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=orders.csv")
+                    .body(csv);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/export/users")
+    public ResponseEntity<?> exportUsers() {
+        try {
+            String csv = adminService.exportUsersToCsv();
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=users.csv")
+                    .body(csv);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/export/products")
+    public ResponseEntity<?> exportProducts() {
+        try {
+            String csv = adminService.exportProductsToCsv();
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .header("Content-Disposition", "attachment; filename=products.csv")
+                    .body(csv);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

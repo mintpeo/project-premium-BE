@@ -48,6 +48,9 @@ public class Product {
 
     @OneToMany(mappedBy = "product")
     private List<ProductType> productTypes;
+
+    @Column(name = "approved", nullable = false)
+    private boolean approved = true;
 }
 
 
