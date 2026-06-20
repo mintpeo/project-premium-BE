@@ -22,6 +22,7 @@ public class SellerController {
     private final SellerEarningRepository sellerEarningRep;
     private final CouponRepository couponRep;
     private final CommentRepository commentRep;
+    private final ReviewRepository reviewRep;
     private final ProductRep productRep;
     private final OrderRep orderRep;
     private final UserRepository userRep;
@@ -187,6 +188,29 @@ public class SellerController {
         }
     }
 
+    // ===== REVIEWS =====
+
+    @GetMapping("/reviews/{sellerId}")
+    public ResponseEntity<?> getProductReviews(@PathVariable Long sellerId) {
+        try {
+            List<Long> productIds = productRep.findBySellerId(sellerId).stream()
+                    .map(Product::getId).toList();
+            List<Review> reviews = new ArrayList<>();
+            for (Long pid : productIds) {
+                reviews.addAll(reviewRep.findByProductIdOrderByCreatedAtDesc(pid));
+            }
+            reviews.sort((a, b) -> {
+                if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+                if (a.getCreatedAt() == null) return 1;
+                if (b.getCreatedAt() == null) return -1;
+                return b.getCreatedAt().compareTo(a.getCreatedAt());
+            });
+            return ResponseEntity.ok(reviews);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
     // ===== COMMENTS (Reply) =====
 
     @GetMapping("/comments/{sellerId}")
@@ -198,10 +222,15 @@ public class SellerController {
             for (Long pid : productIds) {
                 comments.addAll(commentRep.findByProductIdOrderByCreatedAtDesc(pid));
             }
-            comments.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            comments.sort((a, b) -> {
+                if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+                if (a.getCreatedAt() == null) return 1;
+                if (b.getCreatedAt() == null) return -1;
+                return b.getCreatedAt().compareTo(a.getCreatedAt());
+            });
             return ResponseEntity.ok(comments);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
     }
 
@@ -222,8 +251,48 @@ public class SellerController {
                     .content(content)
                     .parentId(parentId)
                     .approved(true)
+                    .createdAt(LocalDateTime.now())
                     .build();
             return ResponseEntity.ok(commentRep.save(reply));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    @PutMapping("/comments/read/{productId}")
+    public ResponseEntity<?> markCommentsAsRead(@PathVariable Long productId) {
+        try {
+            List<Comment> comments = commentRep.findByProductIdOrderByCreatedAtDesc(productId);
+            List<Comment> toUpdate = new ArrayList<>();
+            for (Comment c : comments) {
+                if (!c.isRead()) {
+                    c.setRead(true);
+                    toUpdate.add(c);
+                }
+            }
+            if (!toUpdate.isEmpty()) {
+                commentRep.saveAll(toUpdate);
+            }
+            return ResponseEntity.ok(Map.of("message", "Marked as read"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/reviews/read/{productId}")
+    public ResponseEntity<?> markReviewsAsRead(@PathVariable Long productId) {
+        try {
+            List<Review> reviews = reviewRep.findByProductIdOrderByCreatedAtDesc(productId);
+            List<Review> toUpdate = new ArrayList<>();
+            for (Review r : reviews) {
+                if (!r.isRead()) {
+                    r.setRead(true);
+                    toUpdate.add(r);
+                }
+            }
+            if (!toUpdate.isEmpty()) {
+                reviewRep.saveAll(toUpdate);
+            }
+            return ResponseEntity.ok(Map.of("message", "Marked as read"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

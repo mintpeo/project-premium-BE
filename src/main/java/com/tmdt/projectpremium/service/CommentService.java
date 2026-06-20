@@ -26,22 +26,37 @@ public class CommentService {
         List<Comment> all = commentRep.findByProductIdOrderByCreatedAtDesc(productId);
         List<Comment> approved = all.stream().filter(Comment::isApproved).toList();
 
-        List<Comment> topLevel = approved.stream().filter(c -> c.getParentId() == null).toList();
-        List<Comment> replies = approved.stream().filter(c -> c.getParentId() != null).toList();
-
-        Map<Long, List<CommentResponse>> replyMap = replies.stream()
-                .collect(Collectors.groupingBy(
-                        Comment::getParentId,
-                        Collectors.mapping(CommentResponse::from, Collectors.toList())
-                ));
-
-        List<CommentResponse> result = new ArrayList<>();
-        for (Comment c : topLevel) {
+        Map<Long, CommentResponse> map = new java.util.LinkedHashMap<>();
+        for (Comment c : approved) {
             CommentResponse res = CommentResponse.from(c);
-            res.setReplies(replyMap.getOrDefault(c.getId(), new ArrayList<>()));
-            result.add(res);
+            res.setReplies(new ArrayList<>());
+            map.put(c.getId(), res);
         }
-        return result;
+
+        List<CommentResponse> roots = new ArrayList<>();
+        for (Comment c : approved) {
+            CommentResponse node = map.get(c.getId());
+            if (c.getParentId() == null) {
+                roots.add(node);
+            } else {
+                CommentResponse parent = map.get(c.getParentId());
+                if (parent != null) {
+                    parent.getReplies().add(node);
+                } else {
+                    roots.add(node);
+                }
+            }
+        }
+
+        reverseReplies(roots);
+        return roots;
+    }
+
+    private void reverseReplies(List<CommentResponse> nodes) {
+        for (CommentResponse node : nodes) {
+            java.util.Collections.reverse(node.getReplies());
+            reverseReplies(node.getReplies());
+        }
     }
 
     @Transactional
@@ -54,6 +69,7 @@ public class CommentService {
                 .user(user)
                 .content(req.getContent())
                 .parentId(req.getParentId())
+                .createdAt(java.time.LocalDateTime.now())
                 .approved(true)
                 .build();
 
