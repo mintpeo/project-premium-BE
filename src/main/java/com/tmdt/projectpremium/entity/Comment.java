@@ -1,5 +1,7 @@
 package com.tmdt.projectpremium.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -17,6 +19,7 @@ public class Comment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password", "phoneNumber", "createdAt", "role", "sellerVerified", "banned"})
     private User user;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -30,4 +33,8 @@ public class Comment {
 
     @Column(name = "approved", nullable = false)
     private boolean approved = true;
+
+    @JsonProperty("isRead")
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
 }
