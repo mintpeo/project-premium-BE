@@ -26,6 +26,7 @@ public class SellerController {
     private final ProductRep productRep;
     private final OrderRep orderRep;
     private final UserRepository userRep;
+    private final WithdrawRequestRepository withdrawRep;
 
     // ===== PRODUCTS =====
 
@@ -293,6 +294,45 @@ public class SellerController {
                 reviewRep.saveAll(toUpdate);
             }
             return ResponseEntity.ok(Map.of("message", "Marked as read"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== WITHDRAW =====
+
+    @GetMapping("/withdraw/{sellerId}")
+    public ResponseEntity<?> getWithdrawRequests(@PathVariable Long sellerId) {
+        return ResponseEntity.ok(withdrawRep.findBySellerIdOrderByCreatedAtDesc(sellerId));
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<?> createWithdrawRequest(@RequestBody Map<String, Object> body) {
+        try {
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            long amount = Long.parseLong(body.get("amount").toString());
+            String note = (String) body.get("note");
+
+            User seller = userRep.findById(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Seller not found"));
+            SellerBalance balance = sellerBalanceService.getSellerBalanceEntity(sellerId);
+            if (balance.getAvailableAmount() < amount) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Số dư khả dụng không đủ"));
+            }
+
+            balance.setAvailableAmount(balance.getAvailableAmount() - amount);
+            balance.setUpdatedAt(LocalDateTime.now());
+            sellerBalanceService.saveBalance(balance);
+
+            WithdrawRequest req = new WithdrawRequest();
+            req.setSeller(seller);
+            req.setAmount(amount);
+            req.setNote(note);
+            req.setStatus("PENDING");
+            req.setCreatedAt(LocalDateTime.now());
+            withdrawRep.save(req);
+
+            return ResponseEntity.ok(Map.of("message", "Yêu cầu rút tiền đã được tạo", "id", req.getId()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
