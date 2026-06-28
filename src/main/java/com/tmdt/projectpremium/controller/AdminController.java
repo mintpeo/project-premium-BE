@@ -1,6 +1,8 @@
 package com.tmdt.projectpremium.controller;
 
 import com.tmdt.projectpremium.entity.*;
+import com.tmdt.projectpremium.repository.UserRepository;
+import com.tmdt.projectpremium.repository.WithdrawRequestRepository;
 import com.tmdt.projectpremium.service.AdminService;
 import com.tmdt.projectpremium.service.SellerBalanceService;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +22,8 @@ import java.util.Map;
 public class AdminController {
     private final AdminService adminService;
     private final SellerBalanceService sellerBalanceService;
+    private final WithdrawRequestRepository withdrawRep;
+    private final UserRepository userRep;
 
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> getDashboard() {
@@ -111,6 +117,15 @@ public class AdminController {
         try {
             adminService.deleteCategory(id);
             return ResponseEntity.ok(Map.of("message", "Deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/products")
+    public ResponseEntity<?> getAllProducts() {
+        try {
+            return ResponseEntity.ok(adminService.getAllProductsForAdmin());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -535,6 +550,24 @@ public class AdminController {
         }
     }
 
+    @GetMapping("/seller-earnings/summary")
+    public ResponseEntity<?> getEarningSummary() {
+        try {
+            return ResponseEntity.ok(sellerBalanceService.getEarningSummary());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/seller-earnings/breakdown")
+    public ResponseEntity<?> getEarningBreakdown() {
+        try {
+            return ResponseEntity.ok(sellerBalanceService.getEarningBreakdown());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/seller-pending-earnings")
     public ResponseEntity<?> getPendingEarnings() {
         try {
@@ -573,6 +606,142 @@ public class AdminController {
             }
             sellerBalanceService.approveAllForSeller(sellerId, adminId);
             return ResponseEntity.ok(Map.of("message", "All earnings approved successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== WITHDRAW REQUESTS =====
+
+    @GetMapping("/sellers-with-balance")
+    public ResponseEntity<?> getSellersWithBalance() {
+        try {
+            List<User> sellers = adminService.getAllSellersRaw();
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (User s : sellers) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", s.getId());
+                entry.put("fullName", s.getFullName());
+                entry.put("email", s.getEmail());
+                entry.put("phoneNumber", s.getPhoneNumber());
+                entry.put("sellerVerified", s.isSellerVerified());
+                SellerBalance b = sellerBalanceService.getSellerBalanceEntity(s.getId());
+                if (b != null) {
+                    entry.put("pendingAmount", b.getPendingAmount());
+                    entry.put("availableAmount", b.getAvailableAmount());
+                    entry.put("totalEarned", b.getTotalEarned());
+                } else {
+                    entry.put("pendingAmount", 0L);
+                    entry.put("availableAmount", 0L);
+                    entry.put("totalEarned", 0L);
+                }
+                result.add(entry);
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/pay-commission")
+    public ResponseEntity<?> payCommission(@RequestBody Map<String, Object> body) {
+        try {
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            long amount = Long.parseLong(body.get("amount").toString());
+            Long adminId = Long.valueOf(body.get("adminId").toString());
+            String note = (String) body.get("note");
+
+            User seller = userRep.findById(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Seller not found"));
+            User admin = userRep.findById(adminId)
+                    .orElseThrow(() -> new RuntimeException("Admin not found"));
+            SellerBalance balance = sellerBalanceService.getSellerBalanceEntity(sellerId);
+            if (balance == null || balance.getAvailableAmount() < amount) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Số dư khả dụng không đủ"));
+            }
+
+            balance.setAvailableAmount(balance.getAvailableAmount() - amount);
+            balance.setUpdatedAt(LocalDateTime.now());
+            sellerBalanceService.saveBalance(balance);
+
+            WithdrawRequest req = new WithdrawRequest();
+            req.setSeller(seller);
+            req.setAmount(amount);
+            req.setNote(note);
+            req.setStatus("APPROVED");
+            req.setCreatedAt(LocalDateTime.now());
+            req.setProcessedAt(LocalDateTime.now());
+            req.setProcessedBy(admin);
+            withdrawRep.save(req);
+
+            return ResponseEntity.ok(Map.of("message", "Đã trả hoa hồng cho " + seller.getFullName()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/withdraw-requests")
+    public ResponseEntity<?> getWithdrawRequests(@RequestParam(defaultValue = "PENDING") String status) {
+        try {
+            return ResponseEntity.ok(withdrawRep.findByStatusOrderByCreatedAtDesc(status));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/withdraw-requests/{id}/approve")
+    public ResponseEntity<?> approveWithdraw(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        try {
+            Long adminId = body.get("adminId");
+            if (adminId == null) return ResponseEntity.badRequest().body(Map.of("error", "adminId is required"));
+
+            User admin = userRep.findById(adminId)
+                    .orElseThrow(() -> new RuntimeException("Admin not found"));
+            WithdrawRequest req = withdrawRep.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Withdraw request not found"));
+            if (!"PENDING".equals(req.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Request already processed"));
+            }
+
+            req.setStatus("APPROVED");
+            req.setProcessedAt(LocalDateTime.now());
+            req.setProcessedBy(admin);
+            withdrawRep.save(req);
+
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt yêu cầu rút tiền"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/withdraw-requests/{id}/reject")
+    public ResponseEntity<?> rejectWithdraw(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            Long adminId = Long.valueOf(body.get("adminId").toString());
+            String adminNote = (String) body.get("adminNote");
+
+            User admin = userRep.findById(adminId)
+                    .orElseThrow(() -> new RuntimeException("Admin not found"));
+            WithdrawRequest req = withdrawRep.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Withdraw request not found"));
+            if (!"PENDING".equals(req.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Request already processed"));
+            }
+
+            req.setStatus("REJECTED");
+            req.setAdminNote(adminNote);
+            req.setProcessedAt(LocalDateTime.now());
+            req.setProcessedBy(admin);
+            withdrawRep.save(req);
+
+            SellerBalance balance = sellerBalanceService.getSellerBalanceEntity(req.getSeller().getId());
+            if (balance != null) {
+                balance.setAvailableAmount(balance.getAvailableAmount() + req.getAmount());
+                balance.setUpdatedAt(LocalDateTime.now());
+                sellerBalanceService.saveBalance(balance);
+            }
+
+            return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu rút tiền"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local OAuth credentials
+src/main/resources/application-oauth.properties
