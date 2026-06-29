@@ -28,6 +28,8 @@ public class SellerController {
     private final UserRepository userRep;
     private final WithdrawRequestRepository withdrawRep;
     private final RefundRequestRepository refundRep;
+    private final LoyaltyProgramRepository loyaltyRep;
+    private final CustomerPointRepository customerPointRep;
 
     // ===== PRODUCTS =====
 
@@ -361,6 +363,50 @@ public class SellerController {
             }
             RefundRequest updated = adminService.processRefund(id, status, note, sellerId);
             return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== LOYALTY POINTS =====
+
+    @GetMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> getLoyaltyProgram(@PathVariable Long sellerId) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId).orElse(null);
+            if (prog == null) {
+                User seller = userRep.findById(sellerId).orElse(null);
+                if (seller == null) return ResponseEntity.badRequest().body(Map.of("error", "Seller not found"));
+                prog = new LoyaltyProgram();
+                prog.setSeller(seller);
+                prog = loyaltyRep.save(prog);
+            }
+            return ResponseEntity.ok(prog);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> updateLoyaltyProgram(@PathVariable Long sellerId, @RequestBody Map<String, Object> body) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Loyalty program not found"));
+            if (body.containsKey("pointRate")) prog.setPointRate(Integer.valueOf(body.get("pointRate").toString()));
+            if (body.containsKey("pointValue")) prog.setPointValue(Integer.valueOf(body.get("pointValue").toString()));
+            if (body.containsKey("minOrderValue")) prog.setMinOrderValue(Long.valueOf(body.get("minOrderValue").toString()));
+            if (body.containsKey("active")) prog.setActive(Boolean.parseBoolean(body.get("active").toString()));
+            prog.setUpdatedAt(LocalDateTime.now());
+            return ResponseEntity.ok(loyaltyRep.save(prog));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/loyalty/customers/{sellerId}")
+    public ResponseEntity<?> getCustomerPoints(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(customerPointRep.findBySellerIdOrderByUpdatedAtDesc(sellerId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
