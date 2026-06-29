@@ -40,6 +40,22 @@ public class OrderSer {
         User user = userRep.findById(req.getUserId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user_id:" + req.getUserId()));
 
+        // Xử lý điểm thưởng
+        int pointsUsed = req.getPointsUsed();
+        if (pointsUsed > 0) {
+            if (pointsUsed > user.getPoints()) {
+                throw new RuntimeException("Số điểm không đủ. Bạn có " + user.getPoints() + " điểm.");
+            }
+            if (pointsUsed > req.getTotalPrice()) {
+                throw new RuntimeException("Số điểm vượt quá tổng tiền đơn hàng.");
+            }
+            user.setPoints(user.getPoints() - pointsUsed);
+            userRep.save(user);
+        }
+
+        // Tính điểm thưởng được hưởng: 1 điểm / 1000đ
+        int pointsEarned = req.getTotalPrice() / 1000;
+
         // set up Order
         Order order = new Order();
         // Tạo ID là số nguyên 15 chữ số (Timestamp + 2 số ngẫu nhiên) để lưu thẳng vào DB
@@ -54,6 +70,8 @@ public class OrderSer {
         order.setOrderDate(LocalDateTime.now());
         order.setNote(req.getNote());
         order.setTotalPrice(req.getTotalPrice());
+        order.setPointsUsed(pointsUsed);
+        order.setPointsEarned(pointsEarned);
 
         rep.save(order); // save order first then do...
 
@@ -160,6 +178,15 @@ public class OrderSer {
             // Cập nhật đã thanh toán và chuyển sang PROCESSING — chờ admin xác nhận
             order.setPaymentStatus("PAID");
             order.setOrderStatus("PROCESSING");
+
+            // Cộng điểm thưởng cho người dùng
+            if (order.getPointsEarned() > 0) {
+                User user = order.getUser();
+                user.setPoints(user.getPoints() + order.getPointsEarned());
+                user.setTotalPointsEarned(user.getTotalPointsEarned() + order.getPointsEarned());
+                userRep.save(user);
+            }
+
             rep.save(order);
         }
     }

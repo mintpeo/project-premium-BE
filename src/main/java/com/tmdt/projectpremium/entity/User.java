@@ -46,6 +46,14 @@ public class User {
     @Column(name = "banned", nullable = false)
     private boolean banned = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private int points = 0;
+
+    @Column(name = "total_points_earned", nullable = false)
+    @Builder.Default
+    private int totalPointsEarned = 0;
+
     public enum Role {
         CUSTOMER, SELLER, ADMIN
     }

@@ -1,10 +1,12 @@
 package com.tmdt.projectpremium.dto.request;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 public class OrderReq {
     private long userId;
     private String fullName;
@@ -15,4 +17,5 @@ public class OrderReq {
     private LocalDateTime orderDate;
     private String note;
     private int totalPrice;
+    private int pointsUsed;
 }
