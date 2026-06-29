@@ -27,6 +27,7 @@ public class SellerController {
     private final OrderRep orderRep;
     private final UserRepository userRep;
     private final WithdrawRequestRepository withdrawRep;
+    private final RefundRequestRepository refundRep;
 
     // ===== PRODUCTS =====
 
@@ -333,6 +334,33 @@ public class SellerController {
             withdrawRep.save(req);
 
             return ResponseEntity.ok(Map.of("message", "Yêu cầu rút tiền đã được tạo", "id", req.getId()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== REFUNDS =====
+
+    @GetMapping("/refunds/{sellerId}")
+    public ResponseEntity<?> getSellerRefunds(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(adminService.getRefundRequestsBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/refunds/{id}/process")
+    public ResponseEntity<?> processSellerRefund(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            String status = (String) body.get("status");
+            String note = (String) body.get("adminNote");
+            Long sellerId = body.get("sellerId") != null ? Long.valueOf(body.get("sellerId").toString()) : null;
+            if (status == null || (!status.equals("APPROVED") && !status.equals("REJECTED"))) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Status must be APPROVED or REJECTED"));
+            }
+            RefundRequest updated = adminService.processRefund(id, status, note, sellerId);
+            return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
