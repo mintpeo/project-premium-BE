@@ -53,6 +53,16 @@ public class SellerBalanceService {
     }
 
     @Transactional(readOnly = true)
+    public SellerBalance getSellerBalanceEntity(Long sellerId) {
+        return balanceRep.findBySellerId(sellerId).orElse(null);
+    }
+
+    @Transactional
+    public void saveBalance(SellerBalance balance) {
+        balanceRep.save(balance);
+    }
+
+    @Transactional(readOnly = true)
     public Map<String, Object> getSellerBalance(Long sellerId) {
         SellerBalance balance = balanceRep.findBySellerId(sellerId).orElse(null);
         if (balance == null) {
@@ -70,6 +80,63 @@ public class SellerBalanceService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> getEarningSummary() {
+        List<SellerEarning> all = earningRep.findAll();
+        long totalPending = 0, totalApproved = 0;
+        for (SellerEarning e : all) {
+            if ("PENDING".equals(e.getStatus())) totalPending += e.getAmount();
+            else if ("APPROVED".equals(e.getStatus())) totalApproved += e.getAmount();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalPending", totalPending);
+        result.put("totalApproved", totalApproved);
+        result.put("total", totalPending + totalApproved);
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getEarningBreakdown() {
+        List<SellerEarning> all = earningRep.findAll();
+        Map<Long, Map<String, Object>> sellerMap = new LinkedHashMap<>();
+
+        for (SellerEarning e : all) {
+            Long sellerId = e.getSeller().getId();
+            sellerMap.putIfAbsent(sellerId, new LinkedHashMap<>());
+            Map<String, Object> d = sellerMap.get(sellerId);
+
+            if (!d.containsKey("sellerId")) {
+                d.put("sellerId", sellerId);
+                d.put("sellerName", e.getSeller().getFullName());
+                d.put("sellerEmail", e.getSeller().getEmail());
+                d.put("totalPending", 0L);
+                d.put("totalApproved", 0L);
+                d.put("total", 0L);
+                d.put("earnings", new ArrayList<Map<String, Object>>());
+            }
+
+            long amount = e.getAmount();
+            d.put("total", (Long) d.get("total") + amount);
+            if ("PENDING".equals(e.getStatus())) {
+                d.put("totalPending", (Long) d.get("totalPending") + amount);
+            } else if ("APPROVED".equals(e.getStatus())) {
+                d.put("totalApproved", (Long) d.get("totalApproved") + amount);
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> earnings = (List<Map<String, Object>>) d.get("earnings");
+            Map<String, Object> ed = new LinkedHashMap<>();
+            ed.put("id", e.getId());
+            ed.put("amount", e.getAmount());
+            ed.put("status", e.getStatus());
+            ed.put("orderId", e.getOrder().getId());
+            ed.put("productName", e.getProduct().getName());
+            ed.put("createdAt", e.getCreatedAt().toString());
+            earnings.add(ed);
+        }
+
+        return new ArrayList<>(sellerMap.values());
+    }
+
     public List<Map<String, Object>> getPendingEarnings() {
         List<SellerEarning> earnings = earningRep.findByStatusOrderByCreatedAtAsc("PENDING");
         Map<Long, Map<String, Object>> sellerMap = new LinkedHashMap<>();

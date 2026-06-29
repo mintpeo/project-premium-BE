@@ -5,6 +5,7 @@ import com.tmdt.projectpremium.dto.AuthResponse;
 import com.tmdt.projectpremium.dto.LoginRequest;
 import com.tmdt.projectpremium.dto.RegisterRequest;
 import com.tmdt.projectpremium.dto.SendOtpRequest;
+import com.tmdt.projectpremium.dto.request.LoginFacebookReq;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.service.AuthService;
 import jakarta.validation.Valid;
@@ -26,13 +27,28 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @GetMapping("/google")
-    public ResponseEntity<?> currentUser(@AuthenticationPrincipal OAuth2User userGoogle) {
-        if (userGoogle == null) return ResponseEntity.status(401).body("Not Logged In");
-        User user = authService.createOrLoadUserGoogle(userGoogle);
+    @GetMapping("/oauth/callback")
+    public ResponseEntity<?> currentUser(@AuthenticationPrincipal OAuth2User oAuth2User) {
+        if (oAuth2User == null) return ResponseEntity.status(401).body("Not Logged In");
+        User user = authService.createOrLoadUserOAuth(oAuth2User);
         return ResponseEntity.ok(new AuthResponse(
                 true,
                 "Đăng nhập thành công",
+                Map.of(
+                        "id", user.getId(),
+                        "email", user.getEmail(),
+                        "fullName", user.getFullName() != null ? user.getFullName() : "",
+                        "role", user.getRole().name()
+                )
+        ));
+    }
+
+    @PostMapping("/facebook")
+    public ResponseEntity<?> loginFacebook(@RequestBody LoginFacebookReq request) {
+        User user = authService.loginFacebook(request.getAccessToken());
+        return ResponseEntity.ok(new AuthResponse(
+                true,
+                "Đăng nhập Facebook thành công",
                 Map.of(
                         "id", user.getId(),
                         "email", user.getEmail(),

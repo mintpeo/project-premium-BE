@@ -157,49 +157,10 @@ public class OrderSer {
         // Chỉ xử lý nếu đơn đang ở PENDING
         if ("PENDING".equals(order.getOrderStatus())) {
 
-            // 1. Cập nhật đã thanh toán và chuyển sang PROCESSING
+            // Cập nhật đã thanh toán và chuyển sang PROCESSING — chờ admin xác nhận
             order.setPaymentStatus("PAID");
             order.setOrderStatus("PROCESSING");
             rep.save(order);
-
-            // 2. Thử tự động xuất kho (Gán Key/Tài khoản)
-            try {
-                autoAssignKeysAndCompleteOrder(order);
-            } catch (Exception e) {
-                System.err.println("Cấp Key tự động thất bại cho đơn hàng " + orderId
-                        + ". Đơn hàng sẽ giữ nguyên ở trạng thái PROCESSING.");
-                e.printStackTrace();
-
-            }
-        }
-    }
-
-    private void autoAssignKeysAndCompleteOrder(Order order) {
-        boolean allAssigned = true;
-
-        for (OrderItem item : order.getOrderItems()) {
-            /*
-             * TODO Tương lai: Bạn sẽ gọi API vào kho thẻ (ví dụ KeyRep) để lấy Key chưa sử
-             * dụng ra.
-             * Ví dụ: String availableKey =
-             * keyRep.getAvailableKey(item.getProduct().getId());
-             */
-
-            // Hiện tại: Mình giả lập hệ thống tự động sinh (hoặc lấy) một Key gán vào cho
-            // khách
-            String generatedKey = "ACC-" + item.getProduct().getId() + "-" + System.currentTimeMillis();
-            item.setKeyCode(generatedKey);
-            orderItemRep.save(item);
-
-            // Nếu có sản phẩm nào hết Key trong kho, set allAssigned = false
-        }
-
-        // 3. Nếu cấp phát Key thành công toàn bộ, thông thường sẽ chuyển lên ĐÃ GIAO
-        // (SUCCESS)
-        if (allAssigned) {
-            order.setOrderStatus("SUCCESS");
-            rep.save(order);
-            sellerBalanceService.processOrderEarnings(order);
         }
     }
 }

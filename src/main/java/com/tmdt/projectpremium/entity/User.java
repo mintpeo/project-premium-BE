@@ -37,6 +37,7 @@ public class User {
     private Role role = Role.CUSTOMER;
 
     @Column(name = "created_at")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "seller_verified", nullable = false)

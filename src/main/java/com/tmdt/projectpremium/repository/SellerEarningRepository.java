@@ -14,4 +14,6 @@ public interface SellerEarningRepository extends JpaRepository<SellerEarning, Lo
     List<SellerEarning> findBySellerIdAndStatus(Long sellerId, String status);
     List<SellerEarning> findBySellerIdAndCreatedAtAfter(Long sellerId, LocalDateTime since);
     boolean existsByOrderIdAndStatus(Long orderId, String status);
+    long countByStatus(String status);
+    List<SellerEarning> findByStatus(String status);
 }

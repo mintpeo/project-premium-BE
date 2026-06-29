@@ -26,6 +26,10 @@ public class SellerController {
     private final ProductRep productRep;
     private final OrderRep orderRep;
     private final UserRepository userRep;
+    private final WithdrawRequestRepository withdrawRep;
+    private final RefundRequestRepository refundRep;
+    private final LoyaltyProgramRepository loyaltyRep;
+    private final CustomerPointRepository customerPointRep;
 
     // ===== PRODUCTS =====
 
@@ -293,6 +297,116 @@ public class SellerController {
                 reviewRep.saveAll(toUpdate);
             }
             return ResponseEntity.ok(Map.of("message", "Marked as read"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== WITHDRAW =====
+
+    @GetMapping("/withdraw/{sellerId}")
+    public ResponseEntity<?> getWithdrawRequests(@PathVariable Long sellerId) {
+        return ResponseEntity.ok(withdrawRep.findBySellerIdOrderByCreatedAtDesc(sellerId));
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<?> createWithdrawRequest(@RequestBody Map<String, Object> body) {
+        try {
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            long amount = Long.parseLong(body.get("amount").toString());
+            String note = (String) body.get("note");
+
+            User seller = userRep.findById(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Seller not found"));
+            SellerBalance balance = sellerBalanceService.getSellerBalanceEntity(sellerId);
+            if (balance.getAvailableAmount() < amount) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Số dư khả dụng không đủ"));
+            }
+
+            balance.setAvailableAmount(balance.getAvailableAmount() - amount);
+            balance.setUpdatedAt(LocalDateTime.now());
+            sellerBalanceService.saveBalance(balance);
+
+            WithdrawRequest req = new WithdrawRequest();
+            req.setSeller(seller);
+            req.setAmount(amount);
+            req.setNote(note);
+            req.setStatus("PENDING");
+            req.setCreatedAt(LocalDateTime.now());
+            withdrawRep.save(req);
+
+            return ResponseEntity.ok(Map.of("message", "Yêu cầu rút tiền đã được tạo", "id", req.getId()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== REFUNDS =====
+
+    @GetMapping("/refunds/{sellerId}")
+    public ResponseEntity<?> getSellerRefunds(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(adminService.getRefundRequestsBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/refunds/{id}/process")
+    public ResponseEntity<?> processSellerRefund(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            String status = (String) body.get("status");
+            String note = (String) body.get("adminNote");
+            Long sellerId = body.get("sellerId") != null ? Long.valueOf(body.get("sellerId").toString()) : null;
+            if (status == null || (!status.equals("APPROVED") && !status.equals("REJECTED"))) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Status must be APPROVED or REJECTED"));
+            }
+            RefundRequest updated = adminService.processRefund(id, status, note, sellerId);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== LOYALTY POINTS =====
+
+    @GetMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> getLoyaltyProgram(@PathVariable Long sellerId) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId).orElse(null);
+            if (prog == null) {
+                User seller = userRep.findById(sellerId).orElse(null);
+                if (seller == null) return ResponseEntity.badRequest().body(Map.of("error", "Seller not found"));
+                prog = new LoyaltyProgram();
+                prog.setSeller(seller);
+                prog = loyaltyRep.save(prog);
+            }
+            return ResponseEntity.ok(prog);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> updateLoyaltyProgram(@PathVariable Long sellerId, @RequestBody Map<String, Object> body) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Loyalty program not found"));
+            if (body.containsKey("pointRate")) prog.setPointRate(Integer.valueOf(body.get("pointRate").toString()));
+            if (body.containsKey("pointValue")) prog.setPointValue(Integer.valueOf(body.get("pointValue").toString()));
+            if (body.containsKey("minOrderValue")) prog.setMinOrderValue(Long.valueOf(body.get("minOrderValue").toString()));
+            if (body.containsKey("active")) prog.setActive(Boolean.parseBoolean(body.get("active").toString()));
+            prog.setUpdatedAt(LocalDateTime.now());
+            return ResponseEntity.ok(loyaltyRep.save(prog));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/loyalty/customers/{sellerId}")
+    public ResponseEntity<?> getCustomerPoints(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(customerPointRep.findBySellerIdOrderByUpdatedAtDesc(sellerId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

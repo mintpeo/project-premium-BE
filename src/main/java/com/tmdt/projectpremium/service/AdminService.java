@@ -2,6 +2,8 @@ package com.tmdt.projectpremium.service;
 
 import com.tmdt.projectpremium.entity.*;
 import com.tmdt.projectpremium.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +31,9 @@ public class AdminService {
     private final RefundRequestRepository refundRep;
     private final CommentRepository commentRep;
     private final PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardStats() {
@@ -94,6 +99,11 @@ public class AdminService {
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRep.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> getAllProductsForAdmin() {
+        return productRep.findAll();
     }
 
     @Transactional(readOnly = true)
@@ -204,6 +214,7 @@ public class AdminService {
         product.setPriceOri(priceOri);
         product.setRating(0.0);
         product.setSold(0);
+        product.setApproved(false);
         if (sellerId != null) {
             User seller = userRep.findById(sellerId)
                     .orElseThrow(() -> new RuntimeException("Seller not found with id: " + sellerId));
@@ -268,7 +279,21 @@ public class AdminService {
 
     @Transactional
     public void deleteProduct(Long id) {
+        entityManager.createNativeQuery("DELETE FROM product_categories WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM product_duration WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM product_types_user WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM cart_items WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM order_items WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM comments WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM reviews WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM product_keys WHERE product_id = ?1").setParameter(1, id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM seller_earnings WHERE product_id = ?1").setParameter(1, id).executeUpdate();
         productRep.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> getAllSellersRaw() {
+        return userRep.findByRole(User.Role.SELLER);
     }
 
     @Transactional(readOnly = true)
@@ -364,8 +389,25 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<Comment> getPendingComments() {
-        return commentRep.findByApprovedFalseOrderByCreatedAtDesc();
+    public List<Map<String, Object>> getPendingComments() {
+        List<Comment> comments = commentRep.findByApprovedFalseOrderByCreatedAtDesc();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Comment c : comments) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", c.getId());
+            map.put("productId", c.getProductId());
+            map.put("user", c.getUser());
+            map.put("content", c.getContent());
+            map.put("parentId", c.getParentId());
+            map.put("createdAt", c.getCreatedAt());
+            map.put("approved", c.isApproved());
+            String productName = productRep.findById(c.getProductId())
+                    .map(Product::getName)
+                    .orElse("Sản phẩm #" + c.getProductId());
+            map.put("productName", productName);
+            result.add(map);
+        }
+        return result;
     }
 
     @Transactional
@@ -559,6 +601,11 @@ public class AdminService {
         stats.put("approved", refundRep.countByStatus("APPROVED"));
         stats.put("rejected", refundRep.countByStatus("REJECTED"));
         return stats;
+    }
+
+    @Transactional(readOnly = true)
+    public List<RefundRequest> getRefundRequestsBySeller(Long sellerId) {
+        return refundRep.findBySellerId(sellerId);
     }
 
     @Transactional

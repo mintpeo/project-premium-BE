@@ -82,6 +82,13 @@
             <version>2.3.2</version>
         </dependency>
 
+        <!-- OAuth2 Google -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+    </dependencies>
+
         <!--  Login Goolge  -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
