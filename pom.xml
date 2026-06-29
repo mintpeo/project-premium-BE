@@ -67,6 +67,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
         <!-- PayOS SDK -->
         <dependency>
             <groupId>vn.payos</groupId>
@@ -88,6 +89,12 @@
         </dependency>
     </dependencies>
 
+        <!--  Login Goolge  -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+    </dependencies>
     <build>
         <plugins>
             <plugin>
