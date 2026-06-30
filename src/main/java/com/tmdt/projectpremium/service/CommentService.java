@@ -24,7 +24,7 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentResponse> getByProductId(Long productId) {
         List<Comment> all = commentRep.findByProductIdOrderByCreatedAtDesc(productId);
-        all.removeIf(c -> !"APPROVED".equals(c.getStatus()));
+        all.removeIf(c -> "HIDDEN".equals(c.getStatus()));
 
         Map<Long, CommentResponse> map = new java.util.LinkedHashMap<>();
         for (Comment c : all) {

@@ -18,7 +18,7 @@ public class ReviewResponse {
 
     public static ReviewResponse from(Review r) {
         String name = r.getUser().getFullName() != null ? r.getUser().getFullName() : r.getUser().getEmail();
-        String date = r.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String date = r.getCreatedAt() != null ? r.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "";
         return new ReviewResponse(r.getId(), r.getProductId(), r.getUser().getId(), name, r.getStars(), r.getContent(), date);
     }
 }

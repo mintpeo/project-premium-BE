@@ -420,6 +420,8 @@ public class AdminService {
             productRep.findById(r.getProductId()).ifPresent(p -> {
                 map.put("productName", p.getName());
                 map.put("productImg", p.getImg());
+                map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).collect(Collectors.toList()) : new ArrayList<>());
             });
             result.add(map);
         }
@@ -450,6 +452,8 @@ public class AdminService {
             productRep.findById(c.getProductId()).ifPresent(p -> {
                 map.put("productName", p.getName());
                 map.put("productImg", p.getImg());
+                map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).collect(Collectors.toList()) : new ArrayList<>());
             });
             result.add(map);
         }

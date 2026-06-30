@@ -29,9 +29,11 @@ public class Review {
     private String content;
 
     @Column(name = "created_at")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "status", length = 20)
+    @Builder.Default
     private String status = "PENDING";
 
     public String getStatus() {
@@ -40,6 +42,7 @@ public class Review {
 
     @JsonProperty("isRead")
     @Column(name = "is_read", nullable = false)
+    @Builder.Default
     private boolean isRead = false;
 
     @Column(name = "shop_reply", columnDefinition = "TEXT")

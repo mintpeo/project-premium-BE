@@ -20,7 +20,7 @@ public class ReviewService {
     public List<ReviewResponse> getByProductId(Long productId) {
         return reviewRepository.findByProductIdOrderByCreatedAtDesc(productId)
                 .stream()
-                .filter(r -> "APPROVED".equals(r.getStatus()))
+                .filter(r -> !"HIDDEN".equals(r.getStatus()))
                 .map(ReviewResponse::from)
                 .collect(Collectors.toList());
     }
