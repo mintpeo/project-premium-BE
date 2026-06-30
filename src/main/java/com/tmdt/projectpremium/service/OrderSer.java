@@ -30,6 +30,7 @@ public class OrderSer {
     private final ProductRep productRep;
     private final CartSer cartSer;
     private final SellerBalanceService sellerBalanceService;
+    private final ProductKeyService productKeyService;
 
     // Save The Order
     public Order saveOrder(AddOrderReq orderReq) {
@@ -175,19 +176,43 @@ public class OrderSer {
         // Chỉ xử lý nếu đơn đang ở PENDING
         if ("PENDING".equals(order.getOrderStatus())) {
 
-            // Cập nhật đã thanh toán và chuyển sang PROCESSING — chờ admin xác nhận
+            // Cập nhật đã thanh toán và chuyển sang PROCESSING
             order.setPaymentStatus("PAID");
             order.setOrderStatus("PROCESSING");
 
             // Cộng điểm thưởng cho người dùng
-            if (order.getPointsEarned() > 0) {
+            Integer earned = order.getPointsEarned();
+            if (earned != null && earned > 0) {
                 User user = order.getUser();
-                user.setPoints(user.getPoints() + order.getPointsEarned());
-                user.setTotalPointsEarned(user.getTotalPointsEarned() + order.getPointsEarned());
+                user.setPoints((user.getPoints() != null ? user.getPoints() : 0) + earned);
+                user.setTotalPointsEarned((user.getTotalPointsEarned() != null ? user.getTotalPointsEarned() : 0) + earned);
                 userRep.save(user);
             }
 
             rep.save(order);
+
+            // Thử gán key + tự động chuyển SUCCESS + tạo earning
+            try {
+                productKeyService.assignKeysToOrder(order);
+                autoAssignKeysAndCompleteOrder(order);
+            } catch (Exception e) {
+                System.err.println("Cấp Key tự động thất bại cho đơn hàng " + orderId);
+            }
+        }
+    }
+
+    private void autoAssignKeysAndCompleteOrder(Order order) {
+        boolean allAssigned = true;
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getKeyCode() == null || item.getKeyCode().isEmpty()) {
+                allAssigned = false;
+                break;
+            }
+        }
+        if (allAssigned) {
+            order.setOrderStatus("SUCCESS");
+            rep.save(order);
+            sellerBalanceService.processOrderEarnings(order);
         }
     }
 }

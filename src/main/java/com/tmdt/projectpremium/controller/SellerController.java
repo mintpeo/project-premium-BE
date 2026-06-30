@@ -4,6 +4,7 @@ import com.tmdt.projectpremium.entity.*;
 import com.tmdt.projectpremium.repository.*;
 import com.tmdt.projectpremium.service.AdminService;
 import com.tmdt.projectpremium.service.SellerBalanceService;
+import com.tmdt.projectpremium.service.ProductKeyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ public class SellerController {
 
     private final AdminService adminService;
     private final SellerBalanceService sellerBalanceService;
+    private final ProductKeyService productKeyService;
     private final SellerEarningRepository sellerEarningRep;
     private final CouponRepository couponRep;
     private final CommentRepository commentRep;
@@ -448,6 +450,66 @@ public class SellerController {
                 result.add(point);
             }
             return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== PRODUCT KEYS =====
+
+    @GetMapping("/product-keys/{sellerId}")
+    public ResponseEntity<?> getSellerProductKeys(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(productKeyService.getKeysBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/product-keys/stats/{sellerId}")
+    public ResponseEntity<?> getSellerKeyStats(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(productKeyService.getKeyStatsBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys")
+    public ResponseEntity<?> addSellerProductKey(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            String keyCode = (String) body.get("keyCode");
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            ProductKey created = productKeyService.addProductKey(productId, keyCode, sellerId);
+            return ResponseEntity.ok(created);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys/bulk")
+    public ResponseEntity<?> addSellerProductKeysBulk(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            @SuppressWarnings("unchecked")
+            List<String> keyCodes = (List<String>) body.get("keyCodes");
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            if (keyCodes == null || keyCodes.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách key không được để trống"));
+            }
+            productKeyService.addProductKeysBulk(productId, keyCodes, sellerId);
+            return ResponseEntity.ok(Map.of("message", "Đã thêm " + keyCodes.size() + " key thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/product-keys/{id}/seller/{sellerId}")
+    public ResponseEntity<?> deleteSellerProductKey(@PathVariable Long id, @PathVariable Long sellerId) {
+        try {
+            productKeyService.deleteProductKey(id, sellerId);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá key thành công"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
