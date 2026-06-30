@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final com.tmdt.projectpremium.repository.UserRepository userRep;
 
     @GetMapping("/profile/{userId}")
     public ResponseEntity<AuthResponse> getProfile(@PathVariable Long userId) {
@@ -54,6 +55,14 @@ public class UserController {
                 true,
                 "Đổi mật khẩu thành công"
         ));
+    }
+
+    @GetMapping("/points/{userId}")
+    public ResponseEntity<?> getUserPoints(@PathVariable Long userId) {
+        var user = userRep.findById(userId);
+        if (user.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "User not found"));
+        Integer pts = user.get().getPoints();
+        return ResponseEntity.ok(java.util.Map.of("points", pts != null ? pts : 0));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

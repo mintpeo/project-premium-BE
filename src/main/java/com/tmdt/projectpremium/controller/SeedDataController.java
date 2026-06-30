@@ -1,15 +1,7 @@
 package com.tmdt.projectpremium.controller;
 
-import com.tmdt.projectpremium.entity.Order;
-import com.tmdt.projectpremium.entity.OrderItem;
-import com.tmdt.projectpremium.entity.Product;
-import com.tmdt.projectpremium.entity.Review;
-import com.tmdt.projectpremium.entity.User;
-import com.tmdt.projectpremium.repository.OrderItemRep;
-import com.tmdt.projectpremium.repository.OrderRep;
-import com.tmdt.projectpremium.repository.ProductRep;
-import com.tmdt.projectpremium.repository.ReviewRepository;
-import com.tmdt.projectpremium.repository.UserRepository;
+import com.tmdt.projectpremium.entity.*;
+import com.tmdt.projectpremium.repository.*;
 import com.tmdt.projectpremium.service.SellerBalanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +28,7 @@ public class SeedDataController {
     private final OrderItemRep orderItemRep;
     private final ProductRep productRep;
     private final SellerBalanceService sellerBalanceService;
+    private final CouponRepository couponRep;
 
     @PostMapping("/reviews")
     public ResponseEntity<String> seedReviews() {
@@ -248,6 +241,41 @@ public class SeedDataController {
             }
 
             return ResponseEntity.ok("✅ Đã tạo thành công " + count + " đơn hàng mẫu (90 ngày)!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("❌ Lỗi: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/coupons")
+    public ResponseEntity<String> seedCoupons() {
+        try {
+            String[][] couponData = {
+                {"WELCOME10", "PERCENTAGE", "10", "0", "100", "Mã chào mừng - Giảm 10%"},
+                {"GIAM50K", "FIXED", "50000", "200000", "50", "Giảm 50.000đ cho đơn từ 200.000đ"},
+                {"SALE20", "PERCENTAGE", "20", "100000", "200", "Siêu sale 20% cho đơn từ 100.000đ"},
+                {"FREE30K", "FIXED", "30000", "0", "100", "Giảm 30.000đ không cần đơn tối thiểu"},
+                {"SUMMER50", "PERCENTAGE", "15", "300000", "100", "Mùa hè giảm 15% cho đơn từ 300.000đ"},
+            };
+
+            int count = 0;
+            for (String[] data : couponData) {
+                if (!couponRep.existsByCode(data[0])) {
+                    Coupon coupon = Coupon.builder()
+                        .code(data[0])
+                        .discountType(data[1])
+                        .discountValue(Integer.parseInt(data[2]))
+                        .minOrderValue(Integer.parseInt(data[3]))
+                        .maxUses(Integer.parseInt(data[4]))
+                        .usedCount(0)
+                        .active(true)
+                        .expiryDate(LocalDateTime.now().plusMonths(1))
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                    couponRep.save(coupon);
+                    count++;
+                }
+            }
+            return ResponseEntity.ok("✅ Đã tạo " + count + " mã giảm giá mẫu!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("❌ Lỗi: " + e.getMessage());
         }
