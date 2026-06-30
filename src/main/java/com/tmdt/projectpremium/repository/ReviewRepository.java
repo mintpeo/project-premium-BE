@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByProductIdOrderByCreatedAtDesc(Long productId);
-    List<Review> findByApprovedFalseOrderByCreatedAtDesc();
-    long countByApprovedFalse();
+    List<Review> findByStatusOrderByCreatedAtDesc(String status);
+    List<Review> findAllByOrderByCreatedAtDesc();
+    long countByStatus(String status);
 }

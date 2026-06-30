@@ -266,10 +266,20 @@ public class AdminController {
         }
     }
 
-    @GetMapping("/reviews/pending")
-    public ResponseEntity<?> getPendingReviews() {
+    @GetMapping("/reviews/all")
+    public ResponseEntity<?> getAllReviews() {
         try {
-            return ResponseEntity.ok(adminService.getPendingReviews());
+            return ResponseEntity.ok(adminService.getAllReviews());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/reviews/read/{productId}")
+    public ResponseEntity<?> markReviewsAsRead(@PathVariable Long productId) {
+        try {
+            adminService.markReviewsAsRead(productId);
+            return ResponseEntity.ok(Map.of("message", "Đã đánh dấu đọc"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -285,11 +295,22 @@ public class AdminController {
         }
     }
 
-    @DeleteMapping("/reviews/{id}")
-    public ResponseEntity<?> deleteReview(@PathVariable Long id) {
+    @PutMapping("/reviews/{id}/hide")
+    public ResponseEntity<?> hideReview(@PathVariable Long id) {
         try {
-            adminService.deleteReview(id);
-            return ResponseEntity.ok(Map.of("message", "Đã xoá đánh giá"));
+            adminService.hideReview(id);
+            return ResponseEntity.ok(Map.of("message", "Đã ẩn đánh giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reviews/reply")
+    public ResponseEntity<?> replyReview(@RequestBody Map<String, Object> body) {
+        try {
+            Long reviewId = Long.valueOf(body.get("reviewId").toString());
+            String content = (String) body.get("content");
+            return ResponseEntity.ok(adminService.replyReview(reviewId, content));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -304,10 +325,34 @@ public class AdminController {
         }
     }
 
-    @GetMapping("/comments/pending")
-    public ResponseEntity<?> getPendingComments() {
+    @GetMapping("/comments/all")
+    public ResponseEntity<?> getAllComments() {
         try {
-            return ResponseEntity.ok(adminService.getPendingComments());
+            return ResponseEntity.ok(adminService.getAllComments());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/comments/read/{productId}")
+    public ResponseEntity<?> markCommentsAsRead(@PathVariable Long productId) {
+        try {
+            adminService.markCommentsAsRead(productId);
+            return ResponseEntity.ok(Map.of("message", "Đã đánh dấu đọc"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/comments/reply")
+    public ResponseEntity<?> replyComment(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            Long parentId = Long.valueOf(body.get("parentId").toString());
+            Long userId = Long.valueOf(body.get("userId").toString());
+            String content = (String) body.get("content");
+            Comment reply = adminService.replyComment(productId, parentId, userId, content);
+            return ResponseEntity.ok(reply);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -323,11 +368,11 @@ public class AdminController {
         }
     }
 
-    @DeleteMapping("/comments/{id}")
-    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+    @PutMapping("/comments/{id}/hide")
+    public ResponseEntity<?> hideComment(@PathVariable Long id) {
         try {
-            adminService.deleteComment(id);
-            return ResponseEntity.ok(Map.of("message", "Đã xoá bình luận"));
+            adminService.hideComment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã ẩn bình luận"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

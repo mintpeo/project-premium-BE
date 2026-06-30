@@ -31,8 +31,12 @@ public class Comment {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "approved", nullable = false)
-    private boolean approved = true;
+    @Column(name = "status", length = 20)
+    private String status = "PENDING";
+
+    public String getStatus() {
+        return status != null ? status : "PENDING";
+    }
 
     @JsonProperty("isRead")
     @Column(name = "is_read", nullable = false)

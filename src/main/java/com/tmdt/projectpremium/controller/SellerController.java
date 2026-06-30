@@ -217,6 +217,17 @@ public class SellerController {
         }
     }
 
+    @PostMapping("/reviews/reply")
+    public ResponseEntity<?> replyReview(@RequestBody Map<String, Object> body) {
+        try {
+            Long reviewId = Long.valueOf(body.get("reviewId").toString());
+            String content = (String) body.get("content");
+            return ResponseEntity.ok(adminService.replyReview(reviewId, content));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
     // ===== COMMENTS (Reply) =====
 
     @GetMapping("/comments/{sellerId}")
@@ -256,7 +267,7 @@ public class SellerController {
                     .user(user)
                     .content(content)
                     .parentId(parentId)
-                    .approved(true)
+                    .status("APPROVED")
                     .createdAt(LocalDateTime.now())
                     .build();
             return ResponseEntity.ok(commentRep.save(reply));
