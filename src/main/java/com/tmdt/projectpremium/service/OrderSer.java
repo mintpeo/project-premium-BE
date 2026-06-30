@@ -30,6 +30,7 @@ public class OrderSer {
     private final ProductRep productRep;
     private final CartSer cartSer;
     private final SellerBalanceService sellerBalanceService;
+    private final ProductKeyService productKeyService;
 
     // Save The Order
     public Order saveOrder(AddOrderReq orderReq) {
@@ -160,6 +161,7 @@ public class OrderSer {
             // Cập nhật đã thanh toán và chuyển sang PROCESSING — chờ admin xác nhận
             order.setPaymentStatus("PAID");
             order.setOrderStatus("PROCESSING");
+            productKeyService.assignKeysToOrder(order);
             rep.save(order);
         }
     }

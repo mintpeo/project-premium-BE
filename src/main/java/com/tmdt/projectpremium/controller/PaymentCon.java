@@ -10,12 +10,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.tmdt.projectpremium.service.ProductKeyService;
 import vn.payos.PayOS;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payment")
@@ -25,6 +25,7 @@ public class PaymentCon {
     private final PayOS payOS;
     private final OrderRep orderRep;
     private final OrderItemRep orderItemRep;
+    private final ProductKeyService productKeyService;
 
     @PostMapping("/webhook")
     public ResponseEntity<ObjectNode> payOSWebhookHandler(@RequestBody ObjectNode body) {
@@ -44,13 +45,7 @@ public class PaymentCon {
                         order.setPaymentStatus("PAID");
                         order.setOrderStatus("PROCESSING");
 
-                        for (OrderItem item : order.getOrderItems()) {
-                            if (item.getKeyCode() == null || item.getKeyCode().isEmpty()) {
-                                String randomKey = "PREMIUM-KEY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-                                item.setKeyCode(randomKey);
-                                orderItemRep.save(item);
-                            }
-                        }
+                        productKeyService.assignKeysToOrder(order);
                         orderRep.save(order);
                     }
                 }
