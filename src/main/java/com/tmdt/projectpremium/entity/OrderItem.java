@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,4 +42,9 @@ public class OrderItem {
 
     @Column(name = "price")
     private Integer price;
+
+    @OneToOne
+    @JoinColumn(name = "complain_id")
+    @JsonIgnore
+    private Complain complain;
 }

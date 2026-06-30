@@ -113,6 +113,8 @@ public class OrderSer {
                                                                                                         // có)
                 itemDTO.setProductImg(item.getProduct().getImg());
                 itemDTO.setKeyCode(item.getKeyCode());
+                if (item.getComplain() == null) itemDTO.setComplainId(null);
+                else itemDTO.setComplainId(item.getComplain().getId());
                 return itemDTO;
             }).collect(Collectors.toList());
 

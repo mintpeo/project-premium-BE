@@ -13,4 +13,5 @@ public class OrderItemResponseDTO {
     private int price;
     private String productImg;
     private String keyCode;
+    private Long complainId;
 }

@@ -4,6 +4,7 @@ import com.tmdt.projectpremium.entity.*;
 import com.tmdt.projectpremium.repository.*;
 import com.tmdt.projectpremium.service.AdminService;
 import com.tmdt.projectpremium.service.SellerBalanceService;
+import com.tmdt.projectpremium.service.ProductKeyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ public class SellerController {
 
     private final AdminService adminService;
     private final SellerBalanceService sellerBalanceService;
+    private final ProductKeyService productKeyService;
     private final SellerEarningRepository sellerEarningRep;
     private final CouponRepository couponRep;
     private final CommentRepository commentRep;
@@ -27,6 +29,9 @@ public class SellerController {
     private final OrderRep orderRep;
     private final UserRepository userRep;
     private final WithdrawRequestRepository withdrawRep;
+    private final RefundRequestRepository refundRep;
+    private final LoyaltyProgramRepository loyaltyRep;
+    private final CustomerPointRepository customerPointRep;
 
     // ===== PRODUCTS =====
 
@@ -338,6 +343,77 @@ public class SellerController {
         }
     }
 
+    // ===== REFUNDS =====
+
+    @GetMapping("/refunds/{sellerId}")
+    public ResponseEntity<?> getSellerRefunds(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(adminService.getRefundRequestsBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/refunds/{id}/process")
+    public ResponseEntity<?> processSellerRefund(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        try {
+            String status = (String) body.get("status");
+            String note = (String) body.get("adminNote");
+            Long sellerId = body.get("sellerId") != null ? Long.valueOf(body.get("sellerId").toString()) : null;
+            if (status == null || (!status.equals("APPROVED") && !status.equals("REJECTED"))) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Status must be APPROVED or REJECTED"));
+            }
+            RefundRequest updated = adminService.processRefund(id, status, note, sellerId);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== LOYALTY POINTS =====
+
+    @GetMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> getLoyaltyProgram(@PathVariable Long sellerId) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId).orElse(null);
+            if (prog == null) {
+                User seller = userRep.findById(sellerId).orElse(null);
+                if (seller == null) return ResponseEntity.badRequest().body(Map.of("error", "Seller not found"));
+                prog = new LoyaltyProgram();
+                prog.setSeller(seller);
+                prog = loyaltyRep.save(prog);
+            }
+            return ResponseEntity.ok(prog);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/loyalty/{sellerId}")
+    public ResponseEntity<?> updateLoyaltyProgram(@PathVariable Long sellerId, @RequestBody Map<String, Object> body) {
+        try {
+            LoyaltyProgram prog = loyaltyRep.findBySellerId(sellerId)
+                    .orElseThrow(() -> new RuntimeException("Loyalty program not found"));
+            if (body.containsKey("pointRate")) prog.setPointRate(Integer.valueOf(body.get("pointRate").toString()));
+            if (body.containsKey("pointValue")) prog.setPointValue(Integer.valueOf(body.get("pointValue").toString()));
+            if (body.containsKey("minOrderValue")) prog.setMinOrderValue(Long.valueOf(body.get("minOrderValue").toString()));
+            if (body.containsKey("active")) prog.setActive(Boolean.parseBoolean(body.get("active").toString()));
+            prog.setUpdatedAt(LocalDateTime.now());
+            return ResponseEntity.ok(loyaltyRep.save(prog));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/loyalty/customers/{sellerId}")
+    public ResponseEntity<?> getCustomerPoints(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(customerPointRep.findBySellerIdOrderByUpdatedAtDesc(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ===== REVENUE STATS =====
 
     @GetMapping("/revenue/{sellerId}")
@@ -374,6 +450,66 @@ public class SellerController {
                 result.add(point);
             }
             return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ===== PRODUCT KEYS =====
+
+    @GetMapping("/product-keys/{sellerId}")
+    public ResponseEntity<?> getSellerProductKeys(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(productKeyService.getKeysBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/product-keys/stats/{sellerId}")
+    public ResponseEntity<?> getSellerKeyStats(@PathVariable Long sellerId) {
+        try {
+            return ResponseEntity.ok(productKeyService.getKeyStatsBySeller(sellerId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys")
+    public ResponseEntity<?> addSellerProductKey(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            String keyCode = (String) body.get("keyCode");
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            ProductKey created = productKeyService.addProductKey(productId, keyCode, sellerId);
+            return ResponseEntity.ok(created);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/product-keys/bulk")
+    public ResponseEntity<?> addSellerProductKeysBulk(@RequestBody Map<String, Object> body) {
+        try {
+            Long productId = Long.valueOf(body.get("productId").toString());
+            @SuppressWarnings("unchecked")
+            List<String> keyCodes = (List<String>) body.get("keyCodes");
+            Long sellerId = Long.valueOf(body.get("sellerId").toString());
+            if (keyCodes == null || keyCodes.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách key không được để trống"));
+            }
+            productKeyService.addProductKeysBulk(productId, keyCodes, sellerId);
+            return ResponseEntity.ok(Map.of("message", "Đã thêm " + keyCodes.size() + " key thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/product-keys/{id}/seller/{sellerId}")
+    public ResponseEntity<?> deleteSellerProductKey(@PathVariable Long id, @PathVariable Long sellerId) {
+        try {
+            productKeyService.deleteProductKey(id, sellerId);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá key thành công"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

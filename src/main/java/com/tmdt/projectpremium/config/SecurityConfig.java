@@ -43,7 +43,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/api/order/repay/**","/api/auth/**", "/api/user/**", "/api/product/**", "/api/category/**", "/api/categories/**", "/api/cart/**", "/api/cartItem/**", "/api/review/**", "/api/comment/**", "/api/seed/**", "/api/order/**", "/api/payment/**", "/api/admin/**", "/api/seller/**", "/api/upload/**", "/api/comment", "/api/comments/**").permitAll()
+                .requestMatchers("/api/order/repay/**","/api/auth/**", "/api/user/**", "/api/product/**", "/api/category/**", "/api/categories/**", "/api/cart/**", "/api/cartItem/**", "/api/review/**", "/api/comment/**", "/api/seed/**", "/api/order/**", "/api/payment/**", "/api/admin/**", "/api/seller/**", "/api/upload/**", "/api/comment", "/api/comments/**", "/api/complain/**").permitAll()
                 .anyRequest().authenticated()
             ).oauth2Login(oauth -> oauth.defaultSuccessUrl("http://localhost:5173/oauth-callback", true));
         return http.build();

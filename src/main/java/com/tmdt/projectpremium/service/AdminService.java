@@ -603,6 +603,11 @@ public class AdminService {
         return stats;
     }
 
+    @Transactional(readOnly = true)
+    public List<RefundRequest> getRefundRequestsBySeller(Long sellerId) {
+        return refundRep.findBySellerId(sellerId);
+    }
+
     @Transactional
     public RefundRequest processRefund(Long id, String status, String adminNote, Long adminId) {
         RefundRequest req = refundRep.findById(id)
