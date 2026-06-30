@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -46,5 +47,6 @@ public class Coupon {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seller_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User seller;
 }

@@ -211,7 +211,46 @@ public class SellerController {
                 if (b.getCreatedAt() == null) return -1;
                 return b.getCreatedAt().compareTo(a.getCreatedAt());
             });
-            return ResponseEntity.ok(reviews);
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Review r : reviews) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", r.getId());
+                map.put("productId", r.getProductId());
+                map.put("stars", r.getStars());
+                map.put("content", r.getContent());
+                map.put("createdAt", r.getCreatedAt());
+                map.put("status", r.getStatus());
+                map.put("isRead", r.isRead());
+                map.put("shopReply", r.getShopReply());
+                
+                Map<String, Object> userMap = new HashMap<>();
+                if (r.getUser() != null) {
+                    userMap.put("id", r.getUser().getId());
+                    userMap.put("email", r.getUser().getEmail());
+                    userMap.put("fullName", r.getUser().getFullName());
+                }
+                map.put("user", userMap);
+                
+                productRep.findById(r.getProductId()).ifPresent(p -> {
+                    map.put("productName", p.getName());
+                    map.put("productImg", p.getImg());
+                    map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                    map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).toList() : new ArrayList<>());
+                });
+                result.add(map);
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    @PostMapping("/reviews/reply")
+    public ResponseEntity<?> replyReview(@RequestBody Map<String, Object> body) {
+        try {
+            Long reviewId = Long.valueOf(body.get("reviewId").toString());
+            String content = (String) body.get("content");
+            return ResponseEntity.ok(adminService.replyReview(reviewId, content));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
@@ -234,7 +273,33 @@ public class SellerController {
                 if (b.getCreatedAt() == null) return -1;
                 return b.getCreatedAt().compareTo(a.getCreatedAt());
             });
-            return ResponseEntity.ok(comments);
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Comment c : comments) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", c.getId());
+                map.put("productId", c.getProductId());
+                Map<String, Object> userMap = new HashMap<>();
+                if (c.getUser() != null) {
+                    userMap.put("id", c.getUser().getId());
+                    userMap.put("email", c.getUser().getEmail());
+                    userMap.put("fullName", c.getUser().getFullName());
+                }
+                map.put("user", userMap);
+                map.put("content", c.getContent());
+                map.put("parentId", c.getParentId());
+                map.put("createdAt", c.getCreatedAt());
+                map.put("status", c.getStatus());
+                map.put("isRead", c.isRead());
+                
+                productRep.findById(c.getProductId()).ifPresent(p -> {
+                    map.put("productName", p.getName());
+                    map.put("productImg", p.getImg());
+                    map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                    map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).toList() : new ArrayList<>());
+                });
+                result.add(map);
+            }
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
@@ -256,7 +321,7 @@ public class SellerController {
                     .user(user)
                     .content(content)
                     .parentId(parentId)
-                    .approved(true)
+                    .status("APPROVED")
                     .createdAt(LocalDateTime.now())
                     .build();
             return ResponseEntity.ok(commentRep.save(reply));

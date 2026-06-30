@@ -29,12 +29,19 @@ public class Comment {
     private Long parentId;
 
     @Column(name = "created_at")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "approved", nullable = false)
-    private boolean approved = true;
+    @Column(name = "status", length = 20)
+    @Builder.Default
+    private String status = "PENDING";
+
+    public String getStatus() {
+        return status != null ? status : "PENDING";
+    }
 
     @JsonProperty("isRead")
     @Column(name = "is_read", nullable = false)
+    @Builder.Default
     private boolean isRead = false;
 }

@@ -21,7 +21,7 @@ public class CommentResponse {
 
     public static CommentResponse from(Comment c) {
         String name = c.getUser().getFullName() != null ? c.getUser().getFullName() : c.getUser().getEmail();
-        String date = c.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String date = c.getCreatedAt() != null ? c.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "";
         return new CommentResponse(c.getId(), c.getProductId(), c.getUser().getId(), name,
                 c.getContent(), c.getParentId(), date, null);
     }

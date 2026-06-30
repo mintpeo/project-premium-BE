@@ -5,14 +5,8 @@ import com.tmdt.projectpremium.dto.OrderResponseDTO;
 import com.tmdt.projectpremium.dto.request.AddOrderReq;
 import com.tmdt.projectpremium.dto.request.OrderItemReq;
 import com.tmdt.projectpremium.dto.request.OrderReq;
-import com.tmdt.projectpremium.entity.Order;
-import com.tmdt.projectpremium.entity.OrderItem;
-import com.tmdt.projectpremium.entity.Product;
-import com.tmdt.projectpremium.entity.User;
-import com.tmdt.projectpremium.repository.OrderItemRep;
-import com.tmdt.projectpremium.repository.OrderRep;
-import com.tmdt.projectpremium.repository.ProductRep;
-import com.tmdt.projectpremium.repository.UserRepository;
+import com.tmdt.projectpremium.entity.*;
+import com.tmdt.projectpremium.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +24,8 @@ public class OrderSer {
     private final ProductRep productRep;
     private final CartSer cartSer;
     private final SellerBalanceService sellerBalanceService;
+    private final ProductKeyService productKeyService;
+    private final CouponRepository couponRep;
 
     // Save The Order
     public Order saveOrder(AddOrderReq orderReq) {
@@ -39,6 +35,59 @@ public class OrderSer {
         // check user id
         User user = userRep.findById(req.getUserId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user_id:" + req.getUserId()));
+
+        // Xử lý điểm thưởng
+        int pointsUsed = req.getPointsUsed();
+        int userPoints = user.getPoints() != null ? user.getPoints() : 0;
+        if (pointsUsed > 0) {
+            if (pointsUsed > userPoints) {
+                throw new RuntimeException("Số điểm không đủ. Bạn có " + userPoints + " điểm.");
+            }
+            user.setPoints(userPoints - pointsUsed);
+            userRep.save(user);
+        }
+
+        int totalPrice = req.getTotalPrice();
+
+        // Xử lý mã giảm giá
+        int discountAmount = 0;
+        String couponCode = req.getCouponCode();
+        if (couponCode != null && !couponCode.trim().isEmpty()) {
+            Coupon coupon = couponRep.findByCode(couponCode.trim().toUpperCase())
+                    .orElseThrow(() -> new RuntimeException("Mã giảm giá không tồn tại"));
+
+            if (!coupon.isActive()) {
+                throw new RuntimeException("Mã giảm giá đã bị vô hiệu hoá");
+            }
+            if (coupon.getExpiryDate() != null && coupon.getExpiryDate().isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("Mã giảm giá đã hết hạn");
+            }
+            if (coupon.getMaxUses() != null && coupon.getUsedCount() >= coupon.getMaxUses()) {
+                throw new RuntimeException("Mã giảm giá đã hết lượt sử dụng");
+            }
+
+            // Tính rawTotal (tổng gốc trước khi trừ điểm) để validate minOrderValue
+            int rawTotal = totalPrice + (req.getPointsUsed() > 0 ? req.getPointsUsed() : 0);
+            if (coupon.getMinOrderValue() != null && rawTotal < coupon.getMinOrderValue()) {
+                throw new RuntimeException("Đơn hàng tối thiểu " + String.format("%,d", coupon.getMinOrderValue()) + "đ để sử dụng mã này");
+            }
+
+            // Tính discountAmount chỉ để ghi nhận (không trừ vào totalPrice vì FE đã trừ rồi)
+            if (coupon.getDiscountType() != null && coupon.getDiscountType().startsWith("PERCENT")) {
+                discountAmount = rawTotal * coupon.getDiscountValue() / 100;
+            } else {
+                discountAmount = coupon.getDiscountValue();
+            }
+            if (discountAmount > rawTotal) {
+                discountAmount = rawTotal;
+            }
+
+            coupon.setUsedCount(coupon.getUsedCount() + 1);
+            couponRep.save(coupon);
+        }
+
+        // Tính điểm thưởng được hưởng: 1 điểm / 1000đ
+        int pointsEarned = totalPrice / 1000;
 
         // set up Order
         Order order = new Order();
@@ -53,7 +102,11 @@ public class OrderSer {
         order.setOrderStatus("PENDING");
         order.setOrderDate(LocalDateTime.now());
         order.setNote(req.getNote());
-        order.setTotalPrice(req.getTotalPrice());
+        order.setTotalPrice(totalPrice);
+        order.setPointsUsed(pointsUsed);
+        order.setPointsEarned(pointsEarned);
+        order.setCouponCode(couponCode);
+        order.setDiscountAmount(discountAmount);
 
         rep.save(order); // save order first then do...
 
@@ -159,10 +212,43 @@ public class OrderSer {
         // Chỉ xử lý nếu đơn đang ở PENDING
         if ("PENDING".equals(order.getOrderStatus())) {
 
-            // Cập nhật đã thanh toán và chuyển sang PROCESSING — chờ admin xác nhận
+            // Cập nhật đã thanh toán và chuyển sang PROCESSING
             order.setPaymentStatus("PAID");
             order.setOrderStatus("PROCESSING");
+
+            // Cộng điểm thưởng cho người dùng
+            Integer earned = order.getPointsEarned();
+            if (earned != null && earned > 0) {
+                User user = order.getUser();
+                user.setPoints((user.getPoints() != null ? user.getPoints() : 0) + earned);
+                user.setTotalPointsEarned((user.getTotalPointsEarned() != null ? user.getTotalPointsEarned() : 0) + earned);
+                userRep.save(user);
+            }
+
             rep.save(order);
+
+            // Thử gán key + tự động chuyển SUCCESS + tạo earning
+            try {
+                productKeyService.assignKeysToOrder(order);
+                autoAssignKeysAndCompleteOrder(order);
+            } catch (Exception e) {
+                System.err.println("Cấp Key tự động thất bại cho đơn hàng " + orderId);
+            }
+        }
+    }
+
+    private void autoAssignKeysAndCompleteOrder(Order order) {
+        boolean allAssigned = true;
+        for (OrderItem item : order.getOrderItems()) {
+            if (item.getKeyCode() == null || item.getKeyCode().isEmpty()) {
+                allAssigned = false;
+                break;
+            }
+        }
+        if (allAssigned) {
+            order.setOrderStatus("SUCCESS");
+            rep.save(order);
+            sellerBalanceService.processOrderEarnings(order);
         }
     }
 }

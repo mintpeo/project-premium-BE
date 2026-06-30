@@ -87,10 +87,10 @@ public class AdminService {
         long pendingProducts = productRep.countByApprovedFalse();
         stats.put("pendingProducts", pendingProducts);
 
-        long pendingReviews = reviewRep.countByApprovedFalse();
+        long pendingReviews = reviewRep.countByStatus("PENDING");
         stats.put("pendingReviews", pendingReviews);
 
-        long pendingComments = commentRep.countByApprovedFalse();
+        long pendingComments = commentRep.countByStatus("PENDING");
         stats.put("pendingComments", pendingComments);
 
         return stats;
@@ -374,37 +374,87 @@ public class AdminService {
     public Review approveReview(Long reviewId) {
         Review review = reviewRep.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
-        review.setApproved(true);
+        review.setStatus("APPROVED");
         return reviewRep.save(review);
     }
 
     @Transactional
-    public void deleteReview(Long reviewId) {
-        reviewRep.deleteById(reviewId);
+    public Review hideReview(Long reviewId) {
+        Review review = reviewRep.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
+        review.setStatus("HIDDEN");
+        return reviewRep.save(review);
+    }
+
+    @Transactional
+    public Review replyReview(Long reviewId, String replyContent) {
+        Review review = reviewRep.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("Review not found with id: " + reviewId));
+        review.setShopReply(replyContent);
+        return reviewRep.save(review);
     }
 
     @Transactional(readOnly = true)
-    public List<Review> getPendingReviews() {
-        return reviewRep.findByApprovedFalseOrderByCreatedAtDesc();
+    public List<Map<String, Object>> getAllReviews() {
+        List<Review> list = reviewRep.findAllByOrderByCreatedAtDesc();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Review r : list) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", r.getId());
+            map.put("productId", r.getProductId());
+            map.put("stars", r.getStars());
+            map.put("content", r.getContent());
+            map.put("createdAt", r.getCreatedAt());
+            map.put("status", r.getStatus());
+            map.put("isRead", r.isRead());
+            map.put("shopReply", r.getShopReply());
+            
+            Map<String, Object> userMap = new HashMap<>();
+            if (r.getUser() != null) {
+                userMap.put("id", r.getUser().getId());
+                userMap.put("email", r.getUser().getEmail());
+                userMap.put("fullName", r.getUser().getFullName());
+            }
+            map.put("user", userMap);
+            
+            productRep.findById(r.getProductId()).ifPresent(p -> {
+                map.put("productName", p.getName());
+                map.put("productImg", p.getImg());
+                map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).collect(Collectors.toList()) : new ArrayList<>());
+            });
+            result.add(map);
+        }
+        return result;
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getPendingComments() {
-        List<Comment> comments = commentRep.findByApprovedFalseOrderByCreatedAtDesc();
+    public List<Map<String, Object>> getAllComments() {
+        List<Comment> comments = commentRep.findAllByOrderByCreatedAtDesc();
         List<Map<String, Object>> result = new ArrayList<>();
         for (Comment c : comments) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", c.getId());
             map.put("productId", c.getProductId());
-            map.put("user", c.getUser());
+            Map<String, Object> userMap = new HashMap<>();
+            if (c.getUser() != null) {
+                userMap.put("id", c.getUser().getId());
+                userMap.put("email", c.getUser().getEmail());
+                userMap.put("fullName", c.getUser().getFullName());
+            }
+            map.put("user", userMap);
             map.put("content", c.getContent());
             map.put("parentId", c.getParentId());
             map.put("createdAt", c.getCreatedAt());
-            map.put("approved", c.isApproved());
-            String productName = productRep.findById(c.getProductId())
-                    .map(Product::getName)
-                    .orElse("Sản phẩm #" + c.getProductId());
-            map.put("productName", productName);
+            map.put("status", c.getStatus());
+            map.put("isRead", c.isRead());
+            
+            productRep.findById(c.getProductId()).ifPresent(p -> {
+                map.put("productName", p.getName());
+                map.put("productImg", p.getImg());
+                map.put("sellerId", p.getSeller() != null ? p.getSeller().getId() : null);
+                map.put("categoryIds", p.getProductCates() != null ? p.getProductCates().stream().map(pc -> pc.getCategory().getId()).collect(Collectors.toList()) : new ArrayList<>());
+            });
             result.add(map);
         }
         return result;
@@ -414,13 +464,61 @@ public class AdminService {
     public Comment approveComment(Long commentId) {
         Comment comment = commentRep.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found with id: " + commentId));
-        comment.setApproved(true);
+        comment.setStatus("APPROVED");
         return commentRep.save(comment);
     }
 
     @Transactional
-    public void deleteComment(Long commentId) {
-        commentRep.deleteById(commentId);
+    public Comment hideComment(Long commentId) {
+        Comment comment = commentRep.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found with id: " + commentId));
+        comment.setStatus("HIDDEN");
+        return commentRep.save(comment);
+    }
+
+    @Transactional
+    public void markReviewsAsRead(Long productId) {
+        List<Review> reviews = reviewRep.findByProductIdOrderByCreatedAtDesc(productId);
+        List<Review> toUpdate = new ArrayList<>();
+        for (Review r : reviews) {
+            if (!r.isRead()) {
+                r.setRead(true);
+                toUpdate.add(r);
+            }
+        }
+        if (!toUpdate.isEmpty()) {
+            reviewRep.saveAll(toUpdate);
+        }
+    }
+
+    @Transactional
+    public void markCommentsAsRead(Long productId) {
+        List<Comment> comments = commentRep.findByProductIdOrderByCreatedAtDesc(productId);
+        List<Comment> toUpdate = new ArrayList<>();
+        for (Comment c : comments) {
+            if (!c.isRead()) {
+                c.setRead(true);
+                toUpdate.add(c);
+            }
+        }
+        if (!toUpdate.isEmpty()) {
+            commentRep.saveAll(toUpdate);
+        }
+    }
+
+    @Transactional
+    public Comment replyComment(Long productId, Long parentId, Long userId, String content) {
+        User user = userRep.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        Comment reply = Comment.builder()
+                .productId(productId)
+                .user(user)
+                .content(content)
+                .parentId(parentId)
+                .status("APPROVED")
+                .createdAt(LocalDateTime.now())
+                .isRead(true)
+                .build();
+        return commentRep.save(reply);
     }
 
     @Transactional(readOnly = true)

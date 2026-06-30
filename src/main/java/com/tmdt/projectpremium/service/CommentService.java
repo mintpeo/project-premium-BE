@@ -24,17 +24,17 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentResponse> getByProductId(Long productId) {
         List<Comment> all = commentRep.findByProductIdOrderByCreatedAtDesc(productId);
-        List<Comment> approved = all.stream().filter(Comment::isApproved).toList();
+        all.removeIf(c -> "HIDDEN".equals(c.getStatus()));
 
         Map<Long, CommentResponse> map = new java.util.LinkedHashMap<>();
-        for (Comment c : approved) {
+        for (Comment c : all) {
             CommentResponse res = CommentResponse.from(c);
             res.setReplies(new ArrayList<>());
             map.put(c.getId(), res);
         }
 
         List<CommentResponse> roots = new ArrayList<>();
-        for (Comment c : approved) {
+        for (Comment c : all) {
             CommentResponse node = map.get(c.getId());
             if (c.getParentId() == null) {
                 roots.add(node);
@@ -42,8 +42,6 @@ public class CommentService {
                 CommentResponse parent = map.get(c.getParentId());
                 if (parent != null) {
                     parent.getReplies().add(node);
-                } else {
-                    roots.add(node);
                 }
             }
         }
@@ -70,7 +68,6 @@ public class CommentService {
                 .content(req.getContent())
                 .parentId(req.getParentId())
                 .createdAt(java.time.LocalDateTime.now())
-                .approved(true)
                 .build();
 
         return CommentResponse.from(commentRep.save(comment));

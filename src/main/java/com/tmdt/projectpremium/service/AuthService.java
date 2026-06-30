@@ -7,7 +7,6 @@ import com.tmdt.projectpremium.dto.SendOtpRequest;
 import com.tmdt.projectpremium.dto.request.LoginGoogleReq;
 import com.tmdt.projectpremium.entity.User;
 import com.tmdt.projectpremium.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
