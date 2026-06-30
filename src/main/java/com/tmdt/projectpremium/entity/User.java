@@ -48,11 +48,11 @@ public class User {
 
     @Column(nullable = false)
     @Builder.Default
-    private int points = 0;
+    private Integer points = 0;
 
     @Column(name = "total_points_earned", nullable = false)
     @Builder.Default
-    private int totalPointsEarned = 0;
+    private Integer totalPointsEarned = 0;
 
     public enum Role {
         CUSTOMER, SELLER, ADMIN

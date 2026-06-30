@@ -61,7 +61,8 @@ public class UserController {
     public ResponseEntity<?> getUserPoints(@PathVariable Long userId) {
         var user = userRep.findById(userId);
         if (user.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "User not found"));
-        return ResponseEntity.ok(java.util.Map.of("points", user.get().getPoints()));
+        Integer pts = user.get().getPoints();
+        return ResponseEntity.ok(java.util.Map.of("points", pts != null ? pts : 0));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

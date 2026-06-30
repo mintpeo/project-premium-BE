@@ -47,11 +47,17 @@ public class Order {
     @Column(name = "total_price")
     private int totalPrice;
 
-    @Column(name = "points_used")
-    private int pointsUsed = 0;
+    @Column(name = "points_used", columnDefinition = "int default 0")
+    private Integer pointsUsed = 0;
 
-    @Column(name = "points_earned")
-    private int pointsEarned = 0;
+    @Column(name = "points_earned", columnDefinition = "int default 0")
+    private Integer pointsEarned = 0;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "discount_amount", columnDefinition = "int default 0")
+    private Integer discountAmount = 0;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<OrderItem> orderItems;

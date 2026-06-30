@@ -18,4 +18,6 @@ public interface OrderRep extends JpaRepository<Order, Long> {
 
     @Query("SELECT o FROM Order o WHERE o.orderDate >= :since AND o.orderStatus = 'SUCCESS' ORDER BY o.orderDate ASC")
     List<Order> findSuccessOrdersSince(@Param("since") LocalDateTime since);
+
+    long countByCouponCodeAndUserId(String couponCode, Long userId);
 }
