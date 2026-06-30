@@ -66,8 +66,9 @@ public class OrderSer {
                 throw new RuntimeException("Mã giảm giá đã hết lượt sử dụng");
             }
 
-            // Tính rawTotal (tổng gốc trước khi trừ điểm) để validate minOrderValue
-            int rawTotal = totalPrice + (req.getPointsUsed() > 0 ? req.getPointsUsed() : 0);
+            // Tính rawTotal (tổng gốc trước khi trừ điểm và mã) để validate minOrderValue
+            int pointDiscountVnd = req.getPointsUsed() > 0 ? req.getPointsUsed() * 100 : 0;
+            int rawTotal = totalPrice + pointDiscountVnd + req.getCouponDiscount();
             if (coupon.getMinOrderValue() != null && rawTotal < coupon.getMinOrderValue()) {
                 throw new RuntimeException("Đơn hàng tối thiểu " + String.format("%,d", coupon.getMinOrderValue()) + "đ để sử dụng mã này");
             }

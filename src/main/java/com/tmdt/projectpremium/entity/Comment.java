@@ -32,7 +32,7 @@ public class Comment {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "approved", nullable = false)
-    private boolean approved = true;
+    private boolean approved = false;
 
     @JsonProperty("isRead")
     @Column(name = "is_read", nullable = false)

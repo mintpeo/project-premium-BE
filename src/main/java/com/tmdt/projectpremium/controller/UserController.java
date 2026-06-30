@@ -4,9 +4,14 @@ import com.tmdt.projectpremium.dto.AuthResponse;
 import com.tmdt.projectpremium.dto.ChangePasswordRequest;
 import com.tmdt.projectpremium.dto.UpdateProfileRequest;
 import com.tmdt.projectpremium.dto.UserProfileResponse;
+import com.tmdt.projectpremium.dto.response.PointHistoryDTO;
+import com.tmdt.projectpremium.entity.Order;
+import com.tmdt.projectpremium.entity.OrderItem;
 import com.tmdt.projectpremium.entity.User;
+import com.tmdt.projectpremium.repository.OrderRep;
 import com.tmdt.projectpremium.service.UserService;
 import jakarta.validation.Valid;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -21,6 +26,7 @@ public class UserController {
 
     private final UserService userService;
     private final com.tmdt.projectpremium.repository.UserRepository userRep;
+    private final OrderRep orderRep;
 
     @GetMapping("/profile/{userId}")
     public ResponseEntity<AuthResponse> getProfile(@PathVariable Long userId) {
@@ -63,6 +69,40 @@ public class UserController {
         if (user.isEmpty()) return ResponseEntity.badRequest().body(java.util.Map.of("error", "User not found"));
         Integer pts = user.get().getPoints();
         return ResponseEntity.ok(java.util.Map.of("points", pts != null ? pts : 0));
+    }
+
+    @GetMapping("/points/history/{userId}")
+    public ResponseEntity<?> getPointHistory(@PathVariable Long userId) {
+        try {
+            List<Order> orders = orderRep.findPointOrdersByUserId(userId);
+            List<PointHistoryDTO> history = new ArrayList<>();
+
+            for (Order order : orders) {
+                String productName = "";
+                String productImg = "";
+                for (OrderItem item : order.getOrderItems()) {
+                    if (productName.isEmpty()) {
+                        productName = item.getProduct().getName();
+                        productImg = item.getProduct().getImg();
+                    }
+                }
+                if (!productName.isEmpty()) {
+                    if (order.getPointsEarned() != null && order.getPointsEarned() > 0) {
+                        history.add(new PointHistoryDTO("EARNED", order.getPointsEarned(),
+                                order.getId(), productName, productImg, order.getOrderDate()));
+                    }
+                    if (order.getPointsUsed() != null && order.getPointsUsed() > 0) {
+                        history.add(new PointHistoryDTO("REDEEMED", order.getPointsUsed(),
+                                order.getId(), productName, productImg, order.getOrderDate()));
+                    }
+                }
+            }
+
+            history.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            return ResponseEntity.ok(history);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -20,4 +20,10 @@ public interface OrderRep extends JpaRepository<Order, Long> {
     List<Order> findSuccessOrdersSince(@Param("since") LocalDateTime since);
 
     long countByCouponCodeAndUserId(String couponCode, Long userId);
+
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND (o.pointsEarned > 0 OR o.pointsUsed > 0) AND o.orderStatus = 'SUCCESS' ORDER BY o.orderDate DESC")
+    List<Order> findPointOrdersByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT o.user.id FROM Order o JOIN o.orderItems i WHERE i.product.seller.id = :sellerId")
+    List<Long> findCustomerIdsBySellerId(@Param("sellerId") Long sellerId);
 }

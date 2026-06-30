@@ -19,4 +19,5 @@ public class OrderReq {
     private int totalPrice;
     private int pointsUsed;
     private String couponCode;
+    private int couponDiscount;
 }

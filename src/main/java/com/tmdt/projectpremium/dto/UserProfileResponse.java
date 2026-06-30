@@ -15,6 +15,8 @@ public class UserProfileResponse {
     private String phoneNumber;
     private String role;
     private LocalDateTime createdAt;
+    private Integer points;
+    private Integer totalPointsEarned;
 
     public static UserProfileResponse fromUser(User user) {
         return new UserProfileResponse(
@@ -23,7 +25,9 @@ public class UserProfileResponse {
                 user.getFullName(),
                 user.getPhoneNumber(),
                 user.getRole().name(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getPoints(),
+                user.getTotalPointsEarned()
         );
     }
 }

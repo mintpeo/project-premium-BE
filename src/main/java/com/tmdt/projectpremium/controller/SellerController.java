@@ -1,5 +1,6 @@
 package com.tmdt.projectpremium.controller;
 
+import com.tmdt.projectpremium.dto.response.PointHistoryDTO;
 import com.tmdt.projectpremium.entity.*;
 import com.tmdt.projectpremium.repository.*;
 import com.tmdt.projectpremium.service.AdminService;
@@ -217,6 +218,26 @@ public class SellerController {
         }
     }
 
+    @PutMapping("/reviews/{id}/approve")
+    public ResponseEntity<?> approveReview(@PathVariable Long id) {
+        try {
+            adminService.approveReview(id);
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt đánh giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/reviews/{id}")
+    public ResponseEntity<?> deleteReview(@PathVariable Long id) {
+        try {
+            adminService.deleteReview(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá đánh giá"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ===== COMMENTS (Reply) =====
 
     @GetMapping("/comments/{sellerId}")
@@ -237,6 +258,26 @@ public class SellerController {
             return ResponseEntity.ok(comments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        }
+    }
+
+    @PutMapping("/comments/{id}/approve")
+    public ResponseEntity<?> approveComment(@PathVariable Long id) {
+        try {
+            adminService.approveComment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã duyệt bình luận"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/comments/{id}")
+    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+        try {
+            adminService.deleteComment(id);
+            return ResponseEntity.ok(Map.of("message", "Đã xoá bình luận"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -408,7 +449,71 @@ public class SellerController {
     @GetMapping("/loyalty/customers/{sellerId}")
     public ResponseEntity<?> getCustomerPoints(@PathVariable Long sellerId) {
         try {
-            return ResponseEntity.ok(customerPointRep.findBySellerIdOrderByUpdatedAtDesc(sellerId));
+            List<Long> customerIds = orderRep.findCustomerIdsBySellerId(sellerId);
+            List<Map<String, Object>> result = new ArrayList<>();
+
+            for (Long cid : customerIds) {
+                User customer = userRep.findById(cid).orElse(null);
+                if (customer == null) continue;
+
+                List<Order> orders = orderRep.findPointOrdersByUserId(cid);
+                int totalEarned = 0;
+                int totalRedeemed = 0;
+
+                for (Order o : orders) {
+                    if (o.getPointsEarned() != null) totalEarned += o.getPointsEarned();
+                    if (o.getPointsUsed() != null) totalRedeemed += o.getPointsUsed();
+                }
+
+                int currentPoints = (customer.getPoints() != null ? customer.getPoints() : 0);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("id", cid);
+                entry.put("user", Map.of("id", customer.getId(), "fullName", customer.getFullName(), "email", customer.getEmail()));
+                entry.put("points", currentPoints);
+                entry.put("totalEarned", totalEarned);
+                entry.put("totalRedeemed", totalRedeemed);
+                entry.put("updatedAt", LocalDateTime.now());
+                result.add(entry);
+            }
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/loyalty/customers/{sellerId}/history/{customerId}")
+    public ResponseEntity<?> getCustomerPointHistory(@PathVariable Long sellerId, @PathVariable Long customerId) {
+        try {
+            List<Order> orders = orderRep.findPointOrdersByUserId(customerId);
+            List<PointHistoryDTO> history = new ArrayList<>();
+
+            for (Order order : orders) {
+                String productName = "";
+                String productImg = "";
+
+                for (OrderItem item : order.getOrderItems()) {
+                    boolean isSellerItem = item.getProduct().getSeller().getId().equals(sellerId);
+                    if (productName.isEmpty() || isSellerItem) {
+                        productName = item.getProduct().getName();
+                        productImg = item.getProduct().getImg();
+                    }
+                }
+
+                if (!productName.isEmpty()) {
+                    if (order.getPointsEarned() != null && order.getPointsEarned() > 0) {
+                        history.add(new PointHistoryDTO("EARNED", order.getPointsEarned(),
+                                order.getId(), productName, productImg, order.getOrderDate()));
+                    }
+                    if (order.getPointsUsed() != null && order.getPointsUsed() > 0) {
+                        history.add(new PointHistoryDTO("REDEEMED", order.getPointsUsed(),
+                                order.getId(), productName, productImg, order.getOrderDate()));
+                    }
+                }
+            }
+
+            history.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            return ResponseEntity.ok(history);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

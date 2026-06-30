@@ -70,7 +70,6 @@ public class CommentService {
                 .content(req.getContent())
                 .parentId(req.getParentId())
                 .createdAt(java.time.LocalDateTime.now())
-                .approved(true)
                 .build();
 
         return CommentResponse.from(commentRep.save(comment));
